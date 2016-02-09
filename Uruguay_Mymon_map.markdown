@@ -14,45 +14,13 @@ The map I will make here is heavily based off of Oscar Perpiñán Lamigueiro's c
  
  
 
-    ## 
-    ##  # ATTENTION: maps v3.0 has an updated 'world' map.        #
-    ##  # Many country borders and names have changed since 1990. #
-    ##  # Type '?world' or 'news(package="maps")'. See README_v3. #
-
-    ## Loading required package: sp
-
-    ## Checking rgeos availability: TRUE
-
-    ## rgeos version: 0.3-15, (SVN revision 515)
-    ##  GEOS runtime version: 3.4.2-CAPI-1.8.2 r3921 
-    ##  Linking to sp version: 1.2-1 
-    ##  Polygon checking: TRUE
-
-    ## Loading required package: methods
-
-    ## rgdal: version: 1.1-3, (SVN revision 594)
-    ##  Geospatial Data Abstraction Library extensions to R successfully loaded
-    ##  Loaded GDAL runtime: GDAL 1.11.2, released 2015/02/10
-    ##  Path to GDAL shared files: /usr/local/Cellar/gdal/1.11.2_2/share/gdal
-    ##  Loaded PROJ.4 runtime: Rel. 4.8.0, 6 March 2012, [PJ_VERSION: 480]
-    ##  Path to PROJ.4 shared files: (autodetected)
-    ##  Linking to sp version: 1.2-1
-
-    ## Loading required package: lattice
-
-    ## Loading required package: latticeExtra
-
-    ## 
-    ## Attaching package: 'colorspace'
-
-    ## The following object is masked from 'package:raster':
-    ## 
-    ##     RGB
  
 
     # make sure to install packages
     library(maps)
     library(mapdata)
+    library(ggmap)
+    library(ggplot2)
     library(maptools)  #for shapefiles
     library(scales)  #for transparency
     library(RColorBrewer)
@@ -83,7 +51,7 @@ Read in GBIF monk parakeet (Myiopsitta monachus) sightings and Uruguay administr
     # convert country level data to data frame for mapping
     URY_adm0_df <- fortify(URY_adm0)
 
-    ## Error in eval(expr, envir, enclos): could not find function "fortify"
+    ## Regions defined for each Polygons
 
     # str(URY_adm0_df)
  
@@ -130,7 +98,7 @@ I did this because GBIF observations do not always contain accurate stateProvinc
 
     URYroads_df <- fortify(URYroads)
 
-    ## Error in eval(expr, envir, enclos): could not find function "fortify"
+    ## Error in fortify(URYroads): object 'URYroads' not found
 
     str(URYroads_df)
 
