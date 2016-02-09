@@ -2,7 +2,7 @@
 published: true
 status: publish
 author: Grace Smith Vidaurre
-layout: default
+layout: post
 title: Monk parakeets and land use in Uruguay 
 ---
  

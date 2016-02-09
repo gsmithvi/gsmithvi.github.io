@@ -41,7 +41,7 @@ convertRMarkdown <- function(path_site = getwd(), images.dir = path_site, images
           content[publishedLine] <- 'published: true'
 
           # GSV change to path
-          outFile <- file.path(path_site, dir_md, paste(substr(f, 1, (nchar(f)-(nchar(in_ext)))), out_ext))
+          outFile <- file.path(path_site, dir_md, paste(substr(f, 1, (nchar(f)-(nchar(in_ext)))), out_ext, sep = ""))
           
           render_markdown(strict=TRUE)
           
