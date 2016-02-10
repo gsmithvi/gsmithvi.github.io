@@ -53,7 +53,7 @@ URY_adm0 <- readShapePoly("URY_adm0.shp", proj4string=CRS("+proj=longlat +datum=
 URY_adm0_df <- fortify(URY_adm0)
 ```
 
-Retain only GBIF observations contained within the country level polygon, using \code{sp::over()}.
+Retain only GBIF observations contained within the country level polygon, using `sp::over()`.
 I did this because GBIF observations do not always contain accurate stateProvince information. Also, reading in Uruguay roads as shapefiles. 
 
 ```r
@@ -106,7 +106,7 @@ pop[pop == 99999] <- NA
 pop2 <- disaggregate(pop, fact = 10, method = "bilinear")
 ```
 
-![map](./images/uruguay-pop.png) 
+![popmap](/images/uruguay-pop.tiff)
 
 Read in and crop global land cover raster layers
 
@@ -145,7 +145,7 @@ at <- seq(pop2@data@min, pop2@data@max, pop2@data@max/16)
 nClasses <- nrow(rat)
 ```
 
-![map](./images/uruguay-landcover.png) 
+![landmap](/images/uruguay-landcover.tiff)
 
 
 Creating a lattice map object, with land cover layer now scaled by population numbers
@@ -292,7 +292,7 @@ grid.arrange(arrangeGrob(lGrob, bGrob, mainGrob, nrow = 3, heights = unit(c((h/h
              widths = unit(c(35, 2), units = 'cm'))
 ```
 
-![map](./images/mymon-uruguay-landcover.png) 
+![finalmap](/images/mymon-uruguay-landcover.png)
 
 {% endraw %}
 
