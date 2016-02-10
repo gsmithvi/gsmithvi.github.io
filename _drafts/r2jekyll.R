@@ -24,3 +24,5 @@ todir = "../images"
 pics = list.files(fromdir, ".png")
 pics = sapply(pics, function(x) paste(fromdir, x, sep="/"))
 file.copy(pics, todir)
+
+unlink("{{ site.url }}", recursive = TRUE)

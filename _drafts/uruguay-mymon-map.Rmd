@@ -8,16 +8,11 @@ comments: true
 
 {% raw %}
 
-We don't often think of parrots as successful invasive species. The monk parakeet, _Myiopsitta monachus_, is a widespread invader in the Northern hemisphere. Monk parakeets are native to temperate South America, and have been dispersed to other countries by means of the global pet trade. Monks survive winters in Chicago, Brooklyn and Washington State. Recently, SEO/BirdLife volunteers estimated around 20,000 monk parakeets in Spanish cities . 
+We don't often think of parrots as successful invasive species. The monk parakeet, _Myiopsitta monachus_, is a widespread invader in the Northern hemisphere. Monk parakeets are native to temperate South America, and have been dispersed to other countries by means of the global pet trade. Monks survive winters in Chicago, Brooklyn and Washington State. Recently, SEO/BirdLife volunteers estimated around 20,000 monk parakeets in Spanish cities. 
 
 I've been working on maps of monk parakeet sightings using Global Biodiversity Information Facility (GBIF) data. Introduced populations are nearly always found in cities or suburbs. I've included some code below to explore how monk parakeets are distributed across different land class categories in Uruguay, a country thought to be the origin for introduced populations. Keep in mind that GBIF sightings will be biased by human reporting.
 
-The map I will make here is heavily based off of Oscar Perpiñán Lamigueiro's code to create lattice maps using raster layers: see [link](https://procomun.wordpress.com/2012/02/20/maps_with_r_2/) for Oscar's original code.
-
-```{r, echo = FALSE, eval = FALSE}
-# use this only if code will generate figures
-# knitr::opts_chunk$set(fig.path='{{ site.url }}/images/uruguay-mymon-map-')
-```
+The map I will make here is heavily based off of Oscar Perpiñán Lamigueiro's code to create lattice maps using raster layers: see [Oscar's blog](https://procomun.wordpress.com/2012/02/20/maps_with_r_2/) for his original code.
 
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
@@ -42,9 +37,6 @@ library(latticeExtra)
 library(grid)
 library(gridExtra)
 library(grDevices)
-
-# set fig.path for generating figures
-knitr::opts_chunk$set(fig.path='{{ site.url }}/images/')
 
 ```
 

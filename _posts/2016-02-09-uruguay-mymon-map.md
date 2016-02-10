@@ -1,19 +1,18 @@
 ---
-author: Grace Smith Vidaurre
+title: "Making trellis maps in R with raster layers"
 layout: post
-title: Monk parakeets and land use in Uruguay 
+comments: true
 ---
 
-We don't often think of parrots as successful invasive species. The monk parakeet, _Myiopsitta monachus_, is a widespread invader in the Northern hemisphere. Monk parakeets are native to temperate South America, and have been dispersed to other countries by means of the global pet trade. Monks survive winters in Chicago, Brooklyn and Washington State. Recently, SEO/BirdLife volunteers estimated around 20,000 monk parakeets in Spanish cities . 
+# Making trellis maps in R with raster layers
+
+{% raw %}
+
+We don't often think of parrots as successful invasive species. The monk parakeet, _Myiopsitta monachus_, is a widespread invader in the Northern hemisphere. Monk parakeets are native to temperate South America, and have been dispersed to other countries by means of the global pet trade. Monks survive winters in Chicago, Brooklyn and Washington State. Recently, SEO/BirdLife volunteers estimated around 20,000 monk parakeets in Spanish cities. 
 
 I've been working on maps of monk parakeet sightings using Global Biodiversity Information Facility (GBIF) data. Introduced populations are nearly always found in cities or suburbs. I've included some code below to explore how monk parakeets are distributed across different land class categories in Uruguay, a country thought to be the origin for introduced populations. Keep in mind that GBIF sightings will be biased by human reporting.
 
-The map I will make here is heavily based off of Oscar Perpiñán Lamigueiro's code to create lattice maps using raster layers: see [link](https://procomun.wordpress.com/2012/02/20/maps_with_r_2/) for Oscar's original code.
-
-
-```r
-knitr::opts_chunk$set(fig.path='{{ site.url }}/images/uruguay-mymon-map-')
-```
+The map I will make here is heavily based off of Oscar Perpiñán Lamigueiro's code to create lattice maps using raster layers: see [Oscar's blog](https://procomun.wordpress.com/2012/02/20/maps_with_r_2/) for his original code.
 
 
 
@@ -54,7 +53,7 @@ URY_adm0 <- readShapePoly("URY_adm0.shp", proj4string=CRS("+proj=longlat +datum=
 URY_adm0_df <- fortify(URY_adm0)
 ```
 
-Retain only GBIF observations contained within the country level polygon, using sp::over().
+Retain only GBIF observations contained within the country level polygon, using \code{sp::over()}.
 I did this because GBIF observations do not always contain accurate stateProvince information. Also, reading in Uruguay roads as shapefiles. 
 
 ```r
@@ -107,7 +106,7 @@ pop[pop == 99999] <- NA
 pop2 <- disaggregate(pop, fact = 10, method = "bilinear")
 ```
 
-![map](/image/uruguay-pop.png) 
+![map](./images/uruguay-pop.png) 
 
 Read in and crop global land cover raster layers
 
@@ -146,7 +145,7 @@ at <- seq(pop2@data@min, pop2@data@max, pop2@data@max/16)
 nClasses <- nrow(rat)
 ```
 
-![map](/image/uruguay-landcover.png) 
+![map](./images/uruguay-landcover.png) 
 
 
 Creating a lattice map object, with land cover layer now scaled by population numbers
@@ -293,5 +292,7 @@ grid.arrange(arrangeGrob(lGrob, bGrob, mainGrob, nrow = 3, heights = unit(c((h/h
              widths = unit(c(35, 2), units = 'cm'))
 ```
 
-![map](/image/mymon-uruguay-landcover.png) 
+![map](./images/mymon-uruguay-landcover.png) 
+
+{% endraw %}
 
