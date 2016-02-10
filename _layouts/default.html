@@ -1,11 +1,8 @@
----
-layout: default
----
+{% include main_header.html %}
+{% include main_sidebar.html %}
 
-<br>
+<section>
+	{{ content }}
+</section>
 
-{% for post in site.posts %}
-	{{ post.date | date_to_long_string }}<br>
-	<a href="{{ post.url }}">{{ post.title }}</a><br>
-	<br>
-{% endfor %}
+{% include main_footer.html %}
