@@ -14,8 +14,9 @@ I've been working on maps of monk parakeet sightings using Global Biodiversity I
 
 The map I will make here is heavily based off of Oscar Perpiñán Lamigueiro's code to create lattice maps using raster layers: see [link](https://procomun.wordpress.com/2012/02/20/maps_with_r_2/) for Oscar's original code.
 
-```{r}
-knitr::opts_chunk$set(fig.path='{{ site.url }}/images/uruguay-mymon-map-')
+```{r, echo = FALSE, eval = FALSE}
+# use this only if code will generate figures
+# knitr::opts_chunk$set(fig.path='{{ site.url }}/images/uruguay-mymon-map-')
 ```
 
 
@@ -85,7 +86,7 @@ URY_adm0_df <- fortify(URY_adm0)
 
 ```
 
-Retain only GBIF observations contained within the country level polygon, using sp::over().
+Retain only GBIF observations contained within the country level polygon, using \code{sp::over()}.
 I did this because GBIF observations do not always contain accurate stateProvince information. Also, reading in Uruguay roads as shapefiles. 
 ```{r, eval = FALSE}
 
@@ -140,7 +141,7 @@ pop2 <- disaggregate(pop, fact = 10, method = "bilinear")
 
 ```
 
-![map](/image/uruguay-pop.png) 
+![map](/images/uruguay-pop.png) 
 
 Read in and crop global land cover raster layers
 ```{r, eval = FALSE}
@@ -179,7 +180,7 @@ nClasses <- nrow(rat)
 
 ```
 
-![map](/image/uruguay-landcover.png) 
+![map](/images/uruguay-landcover.png) 
 
 
 Creating a lattice map object, with land cover layer now scaled by population numbers
@@ -329,7 +330,7 @@ grid.arrange(arrangeGrob(lGrob, bGrob, mainGrob, nrow = 3, heights = unit(c((h/h
 
 ```
 
-![map](/image/mymon-uruguay-landcover.png) 
+![map](/images/mymon-uruguay-landcover.png) 
 
 {% endraw %}
 
