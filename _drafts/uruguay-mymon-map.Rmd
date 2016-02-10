@@ -1,16 +1,22 @@
 ---
-published: false
-status: process
-author: Grace Smith Vidaurre
+title: "Making trellis maps in R with raster layers"
 layout: post
-title: Monk parakeets and land use in Uruguay 
+comments: true
 ---
+
+# Making trellis maps in R with raster layers
+
+{% raw %}
 
 We don't often think of parrots as successful invasive species. The monk parakeet, _Myiopsitta monachus_, is a widespread invader in the Northern hemisphere. Monk parakeets are native to temperate South America, and have been dispersed to other countries by means of the global pet trade. Monks survive winters in Chicago, Brooklyn and Washington State. Recently, SEO/BirdLife volunteers estimated around 20,000 monk parakeets in Spanish cities . 
 
 I've been working on maps of monk parakeet sightings using Global Biodiversity Information Facility (GBIF) data. Introduced populations are nearly always found in cities or suburbs. I've included some code below to explore how monk parakeets are distributed across different land class categories in Uruguay, a country thought to be the origin for introduced populations. Keep in mind that GBIF sightings will be biased by human reporting.
 
 The map I will make here is heavily based off of Oscar Perpiñán Lamigueiro's code to create lattice maps using raster layers: see [link](https://procomun.wordpress.com/2012/02/20/maps_with_r_2/) for Oscar's original code.
+
+```{r}
+knitr::opts_chunk$set(fig.path='{{ site.url }}/images/uruguay-mymon-map-')
+```
 
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
@@ -324,4 +330,6 @@ grid.arrange(arrangeGrob(lGrob, bGrob, mainGrob, nrow = 3, heights = unit(c((h/h
 ```
 
 ![map](/image/mymon-uruguay-landcover.png) 
+
+{% endraw %}
 
