@@ -141,7 +141,7 @@ pop2 <- disaggregate(pop, fact = 10, method = "bilinear")
 
 ```
 
-![map](/images/uruguay-pop.png) 
+![map](./images/uruguay-pop.png) 
 
 Read in and crop global land cover raster layers
 ```{r, eval = FALSE}
@@ -180,7 +180,7 @@ nClasses <- nrow(rat)
 
 ```
 
-![map](/images/uruguay-landcover.png) 
+![map](./images/uruguay-landcover.png) 
 
 
 Creating a lattice map object, with land cover layer now scaled by population numbers
@@ -330,7 +330,7 @@ grid.arrange(arrangeGrob(lGrob, bGrob, mainGrob, nrow = 3, heights = unit(c((h/h
 
 ```
 
-![map](/images/mymon-uruguay-landcover.png) 
+![map](./images/mymon-uruguay-landcover.png) 
 
 {% endraw %}
 
