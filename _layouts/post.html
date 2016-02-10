@@ -1,17 +1,10 @@
----
-layout: default
----
+{% include main_header.html %}
 
-<article class="post">
-  <h1>{{ page.title }}</h1>
+<div class="blogpost">
+	<a href="http://gsmithvi.github.io">&#8592; Home</a>
+	{{ content }}
+	{% include disqus.html %}
+</div>
 
-  <div class="entry">
-    {{ content }}
-  </div>
 
-  <div class="date">
-    Written on {{ page.date | date: "%B %e, %Y" }}
-  </div>
-
-  {% include disqus.html %}
-</article>
+{% include main_footer.html %}
