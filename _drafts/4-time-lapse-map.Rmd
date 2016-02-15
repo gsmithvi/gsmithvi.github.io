@@ -8,7 +8,7 @@ comments: true
 
 {% raw %}
 
-Interactive graphics are an excellent way to show off your research without being too wordy. A former labmate, [Marcelo Araya Salas](http://marceloarayasalas.weebly.com), had been playing around with making movies or gifs in R, and I thought it would be neat to use these tricks to create a time lapse map of the species I study (yes, monk parakeets again). I wasn't able to finish this map in time to incorporate it into a poster I presented in January, but I'm happy to be posting the code here and now.  
+Interactive graphics are an excellent way to show off your research without being too wordy. A former labmate, [Marcelo Araya Salas](http://marceloarayasalas.weebly.com), had been playing around with making movies or gifs in R. I thought it would be neat to create a time lapse map of the species I study (yes, monk parakeets again). I wasn't able to finish this map in time for a poster I presented in January, but I'm happy to be posting the code here and now.  
 
 In this post, I'm making use of the `maps` package. I chose `maps` because I wanted to demonstrate the global extent of monk parakeet invasions, relative to their native range. I prefer the aestethics of `ggmap` whenever possible, but `ggmap` doesn't support maps on a global scale. It should be easy to replace the `maps` code with some from any preferred mapping package. 
 
@@ -87,7 +87,7 @@ I got lucky here - it was easy to exclude the introduced range polygons based on
 
 Most objects you manipulate in R are S3 objects. S4 objects are more rigid and have specific methods for indexing, etc. The structure of the following S4 polygon seems extremely complex (slots within lists and vice versa), and it can be a pain when figuring out how to index these things for the first time. For the `SpatialPolygonsDataFrame` object below, it helps if you think about it as nothing more than a data frame with 2 dimensions (rows and columns).
 ```{r, echo = FALSE, eval = TRUE}
-mp.distr <- readShapePoly("./_data/Myiopsitta_monachus_1608_NS.shp") 
+mp.distr <- readShapePoly("/Users/gracesmithvidaurre/Desktop/R/gsmithvi.github.io/_data/Myiopsitta_monachus_1608_NS.shp") 
 ```
 
 ```{r, echo = TRUE, eval = FALSE}
@@ -132,16 +132,16 @@ The `maps` code below (using functions `map`, `rect`, `abline` amd `mtext`) is m
 An important disclaimer: as I'm interested in making a map for visualization purposes, I'm not being super careful about projections and coordinate systems of the different data used here (see argument `proj4string` in `SpatialPoints`). If you use similar data for quantitative purposes, you absolutely need to be sure that your coordinate systems/projections are all the same. Nearly all the points I'm mapping generally fall where expected. However, if the majority of GBIF sightings were being plotted in the Atlantic Ocean, that would be an indication for major changes to the coordinate system/projection. 
 
 Moving on, the basic idea below is to:
-* write a loop to create a map per desired time period
-* wrap this expression in a function from package `animation` to create a gif 
+- write a loop to create a map per desired time period
+- wrap this expression in a function from package `animation` to create a gif 
 
 I've included some tricks below that you might find useful:
-* grouping GBIF sightings by native or introduced status, using `sp::over` to determine which South American sightings fall _outside_ the native distributions 
-* colors conditional on native or invasive status
-* map border color conditional on the year monk parakeets invade the Northern hemisphere
-* `alpha` argument inside color palettes controls transparency, to better visualize build-up of plotted points
-* removal of intermediate maps once incorporated into the final gif
-* pbsapply adds a progress bar
++ grouping GBIF sightings by native or introduced status, using `sp::over` to determine which South American sightings fall _outside_ the native distributions 
++ colors conditional on native or invasive status
++ map border color conditional on the year monk parakeets invade the Northern hemisphere
++ `alpha` argument inside color palettes controls transparency, to better visualize build-up of plotted points
++ removal of intermediate maps once incorporated into the final gif
++ pbsapply adds a progress bar
 
 ```{r, eval = FALSE, echo = TRUE}
 
@@ -263,7 +263,7 @@ abline(h = 0, col = "grey", lwd = 2.5, lty = "dashed")
 dev.off()
 ```
 
-<img src="/images/mymon-time-lapse.gif" width="1200" height ="1000" />
+<img src="/images/mymon-time-lapse.gif" width="1200" height ="1200" />
 
 {% endraw %}
 
