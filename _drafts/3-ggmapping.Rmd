@@ -1,0 +1,103 @@
+---
+title: "ggmapping"
+layout: post
+comments: true
+---
+
+{% raw %}
+
+# ggmapping
+
+R has several packages for making maps, including the packages `maps` and `ggmap`. The latter uses smooth aesthetics of `ggplot` to make really good-looking maps. In `ggmaps`, there are several options for map tile types or static map backgrounds, including Google and Stamen maps. Check out [this ggmap cheat sheet](https://www.nceas.ucsb.edu/~frazier/RSpatialGuides/ggmap/ggmapCheatsheet.pdf) to get a look at the different mapping backgrounds available. Stamen maps take a little while to download at high resolution, but yield a nice final product. One downside of using `ggmap` is that global maps aren't available through Google or Stamen maps. 
+
+Here, you can download a Stamen map of the native monk parakeet range, then overlay GBIF sightings by country. 
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+library(ggmap)
+library(ggplot2)
+library(maptools)
+library(scales) 
+library(sp)
+library(rgdal)
+```
+
+```{r, echo = TRUE, eval = FALSE}
+library(ggmap)
+library(ggplot2)
+library(maptools)  #for shapefiles
+library(scales)  #for transparency
+library(sp)
+library(rgdal)
+```
+
+```{r, eval = TRUE, echo = FALSE}
+mp <- read.csv("/Users/gracesmithvidaurre/Desktop/R/gsmithvi.github.io/_data/mymon.csv", header = TRUE, row.names = 1)
+```
+
+```{r, eval = FALSE, echo = TRUE}
+mp <- read.csv(paste("Myiopsitta_monachus_filtered_GBIF_", Sys.Date(), ".csv", sep = ""), header = TRUE)
+```
+
+The GBIF data needs to be filtered for South American sightings
+```{r, echo = TRUE, eval = TRUE}
+mp1 <- mp[mp$decimalLatitude <= 0 & mp$decimalLongitude <= 0, ]
+```
+
+How many countries are in this filtered dataset?
+```{r, echo = TRUE, eval = TRUE}
+table(mp1$countryCode)
+```
+
+The `countryCode` variable is a factor with empty levels, 
+these empties need to be dropped before mapping
+```{r, echo = TRUE, eval = TRUE}
+mp1$countryCode <- droplevels(mp1$countryCode)
+table(mp1$countryCode)
+```
+
+Download the Stamen map, you need Internet for this. A higher zoom argument makes the download time much longer, but gives you better resolution of waterways and other natural boundaries
+```{r, echo = TRUE, eval = FALSE}
+bbox <- c(left = -80, bottom = -45, right = -40, top = 2)
+smap <- get_stamenmap(bbox = bbox, zoom = 8,
+                      maptype = c("toner-background"))
+```
+
+Read in species distribution polygon and initialize data for mapping
+```{r, echo = TRUE, eval = FALSE}
+
+mp.distr <- readOGR("./_data", "Myiopsitta_monachus_1608_NS")
+
+dats <- data.frame(lon = mp1$decimalLongitude, lat = mp1$decimalLatitude, 
+                   country = mp1$countryCode)
+
+fill.cols <- diverge_hcl(length(table(dats$co)), alpha = 0.6)
+
+cols <- rep("black", length(fill.cols))
+```
+
+Overlay GBIF sightings and the species distribution onto the Stamen map.
+```{r, echo = TRUE, eval = FALSE}
+tiff("mymon-south-america.tiff", res = 300, units = "cm", width = 20,
+     height = 20)
+
+ggmap(smap) + 
+  
+  geom_polygon(aes(x = long, y = lat, group = group), color = topo.colors(12)[5], fill = topo.colors(12, alpha = 0.6)[7], size = 1, data = mp.distr) +
+  
+  geom_point(aes(x = lon, y = lat, color = country, fill = country, size = country, shape = country), data = dats) + 
+  
+  scale_fill_manual(values = fill.cols) +
+  
+  scale_colour_manual(values = cols) + 
+  
+  scale_shape_manual(values = rep(21, length(fill.cols))) + 
+  
+  scale_size_manual(values = rep(4, length(fill.cols))) 
+
+dev.off()
+
+```
+
+<img src="/images/mymon-south-america.tiff" width="550" height ="600" />
+
+{% endraw %}

@@ -1,0 +1,110 @@
+---
+title: "Parakeet invaders and fun with R"
+layout: post
+comments: true
+---
+
+# Biological invasions, monk parakeets and coding 
+
+How do species evolve invasive traits? Do species appropriate pre-existing traits to become successful invaders? What roles do human human disturbance and phenotypic plasticity play in successful biological invasions? These are long-standing questions in the field of invasion biology. In my PhD research, I'm addressing these questions by studying an invasive parakeet species.
+
+<img src="/images/mp1.jpg" width="300" height ="300" />
+
+Photo cred: brooklynparrot @ brooklynparrots.com
+
+The order *Psittaciformes* contains some of the highest numbers of endangered avian species. On the other hand, we see more parrot invaders than expected by chance. Monk parakeets (*Myiopsitta monachus*), native to South America, have been dispersed across the Northern hemisphere by the global pet trade. 
+
+We don't often think of parrots as successful invasive species, but monk parakeets are widely successful across their introduced range, even in areas colder than native habitat. Native populations are thought to have expanded their range in the late 1800s, when wide swathes of Argentina were converted for agricultural purposes. Introduced populations live largely in cities, and this affinity for human-disturbed habitat may have arisen in the native range. Recently, SEO/BirdLife volunteers estimated around 20,000 monk parakeets in Spanish cities. 
+
+<img src="/images/Nativemap.tiff" width="300" height ="300" />
+
+
+```{r, eval = FALSE, echo = FALSE}
+
+mopa.distr <- readShapePoly("~/Desktop/R/Maps/Myiopsitta_monachus_1608_NS.shp") 
+
+tiff(file = "Nativemap.tiff", units = "cm", height = 10,
+     width = 10, res = 300)
+
+mp <- read.csv("/Users/gracesmithvidaurre/Desktop/R/gsmithvi.github.io/_data/mymon.csv",
+               header = TRUE)
+lat <- mp6$decimalLatitude[mp6$decimalLatitude <= 0]
+lon <- mp6$decimalLongitude[which(mp6$decimalLatitude <= 0)]
+lon <- mp6$decimalLongitude[mp6$decimalLongitude <= -20 & mp6$decimalLongitude >= -85]
+
+ext <- 3
+# create an empty map after the first time running code below,
+# as well as every time you run dev.off()
+map("world", xlim = c(min(lon) - ext, max(lon) + ext),
+    ylim = c(min(lat) - ext, max(lat) - ext/2), interior = FALSE, fill = FALSE)
+
+# par("usr") specifies plot boundaries using the limits of the data itself
+# here we create a gridded rectangle as the background for the map
+rect(par("usr")[1], par("usr")[3], par("usr")[2], 
+     par("usr")[4], col = cm.colors(20)[7])
+abline(h = seq(-90, 90, 5), col = "white", lwd = 0.9)
+abline(h = seq(-90, 90, 5), col = "white", lwd = 1.1)
+abline(v = seq(-180, 180, 5), col = "white", 
+       lwd = 0.9)
+abline(v = seq(-180, 180, 5), col = "white", 
+       lwd = 1.1)
+
+map("world", xlim = c(min(lon) - ext, max(lon) + ext), add = TRUE,
+    ylim = c(min(lat) - ext, max(lat) - ext/2), fill = TRUE,
+    col = "cornsilk")
+    # col = terrain.colors(10)[6]) 
+
+mtext("Longitude (DD)", side = 1, line = 1)
+mtext("Latitude (DD)", side = 2, line = 1)
+# title("Myiopsitta monachus sightings", cex = 0.7, line = 1)
+
+# using alpha argument to change transparency for better density visualization
+# points(lon, lat, pch = 21, cex = 1, col = heat.colors(10)[2], 
+#        bg = heat.colors(20, alpha = 0.2)[3])
+
+plot(mopa.distr, add = TRUE, xlim = c(min(lon) - ext, max(lon) + ext), 
+     ylim = c(min(lat) - ext, max(lat) + ext), 
+     col = terrain.colors(10, alpha = 0.2)[4], border = terrain.colors(10, alpha = 0.6)[2],
+     lwd = 2)
+
+dev.off() 
+
+```
+
+I'm using genomic tools to determine if genetic differentiation patterns across monk parakeet populations are a product of adaptation to human-induced selection pressures. I'm complementing genomic markers with candidate immune genes to determine if human disturbance influences pathogenic selection pressures. I'm also interested in cold adaptations and phenotypic plasticity, including learning, in monk parakeets that evolved much earlier than their contemporary invasions.
+
+In my following posts, I'll use monk parakeets as a case study for playing around in: 
+
+<img src="/images/R.png" width="200" height ="200" />
+
+The codes I'll post are intended for biologists interested in learning to create graphics or run genomic analyses in R. In all posts, I'm assuming you know how to install and load packages, search for help in RStudio and online, and the different classes of variables / object types in R. If you're unfamiliar with regular expression or logical statements in R, run the simplest unit of the nested expressions to get accustomed to the logic.
+
+For instance:
+
+```{r, eval = TRUE, echo = TRUE}
+x <- c(rep("Myiopsitta", 10), "Hylocichla")
+```
+
+Use regular expression functions to filter data 
+```{r, eval = TRUE, echo = TRUE}
+z <- x[grep("Myiopsitta", x)]
+z
+```
+
+If you don't know how `grep` works, run the expression inside the square brackets, which is the simplest unit of the nested expression. 
+```{r, eval = TRUE, echo = TRUE}
+grep("Myiopsitta", x)
+```
+
+Do the same for the function `grepl`.
+```{r, eval = TRUE, echo = TRUE}
+z <- x[grepl("Myiopsitta", x)]
+grepl("Myiopsitta", x)
+z
+```
+
+
+Feel free to get in touch if you find any bugs in posted code! 
+
+
+
