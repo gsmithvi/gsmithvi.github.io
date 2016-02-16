@@ -6,7 +6,7 @@ comments: true
 
 # Biological invasions, monk parakeets and coding 
 
-How do species evolve invasive traits? Do species appropriate pre-existing traits to become successful invaders? What roles do human human disturbance and phenotypic plasticity play in successful biological invasions? These are long-standing questions in the field of invasion biology. In my PhD research, I'm addressing these questions by studying an invasive parakeet species.
+How do species evolve invasive traits? Do species appropriate pre-existing traits to become successful invaders? What roles do human disturbance and phenotypic plasticity play in successful biological invasions? These are long-standing questions in the field of invasion biology. In my PhD research, I'm addressing these questions by studying an invasive parakeet species.
 
 <img src="/images/mp1.jpg" width="300" height ="300" />
 
