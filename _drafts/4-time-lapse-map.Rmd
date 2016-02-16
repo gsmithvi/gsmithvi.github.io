@@ -12,7 +12,7 @@ Interactive graphics are an excellent way to show off your research without bein
 
 In this post, I'm making use of the `maps` package. I chose `maps` because I wanted to demonstrate the global extent of monk parakeet invasions, relative to their native range. I prefer the aestethics of `ggmap` whenever possible, but `ggmap` doesn't support maps on a global scale. It should be easy to replace the `maps` code with some from any preferred mapping package. 
 
-``````{r, echo = FALSE, message = FALSE, warning = FALSE}
+```{r, eval = TRUE, echo = FALSE, message = FALSE, warning = FALSE}
 library(maps)
 library(ggmap)
 library(mapdata)
@@ -29,7 +29,7 @@ library(ggplot2)
 library(animation)
 ```
 
-```{r, echo = TRUE, eval = FALSE}
+```{r, eval = FALSE, echo = TRUE}
 library(maps)
 library(ggmap)
 library(mapdata)
@@ -47,8 +47,11 @@ library(animation)
 ```
 
 Let's start by intializing all the information that will be overlaid on the map, including:
+
 * Global Biodiversity Information Facility (GBIF) observations, grouped by time period
+
 * Native distribution polygon
+
 * Genomic research sampling sites
 
 ### Prepare GBIF data
@@ -132,15 +135,23 @@ The `maps` code below (using functions `map`, `rect`, `abline` amd `mtext`) is m
 An important disclaimer: as I'm interested in making a map for visualization purposes, I'm not being super careful about projections and coordinate systems of the different data used here (see argument `proj4string` in `SpatialPoints`). If you use similar data for quantitative purposes, you absolutely need to be sure that your coordinate systems/projections are all the same. Nearly all the points I'm mapping generally fall where expected. However, if the majority of GBIF sightings were being plotted in the Atlantic Ocean, that would be an indication for major changes to the coordinate system/projection. 
 
 Moving on, the basic idea below is to:
+
 - write a loop to create a map per desired time period
+
 - wrap this expression in a function from package `animation` to create a gif 
 
 I've included some tricks below that you might find useful:
-+ grouping GBIF sightings by native or introduced status, using `sp::over` to determine which South American sightings fall _outside_ the native distributions 
+
++ grouping GBIF sightings by native or introduced status, using `sp::over` to determine which South American sightings fall _outside_ the native distributions
+
 + colors conditional on native or invasive status
+
 + map border color conditional on the year monk parakeets invade the Northern hemisphere
+
 + `alpha` argument inside color palettes controls transparency, to better visualize build-up of plotted points
+
 + removal of intermediate maps once incorporated into the final gif
+
 + pbsapply adds a progress bar
 
 ```{r, eval = FALSE, echo = TRUE}

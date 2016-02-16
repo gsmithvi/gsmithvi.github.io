@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Grace Smith Vidaurre</title>
+
+    <link rel="stylesheet" href="/stylesheets/styles.css">
+    <link rel="stylesheet" href="/stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="/stylesheets/bootstrap-social.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.5-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <script src="/static/bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+
+<div class="blogpost">
+	<a href="http://gsmithvi.github.io">&#8592; Home</a>
+	<h1>Biological invasions, monk parakeets and coding</h1>
+
+<p>How do species evolve invasive traits? Do species appropriate pre-existing traits to become successful invaders? What roles do human human disturbance and phenotypic plasticity play in successful biological invasions? These are long-standing questions in the field of invasion biology. In my PhD research, I&#39;m addressing these questions by studying an invasive parakeet species.</p>
+
+<p><img src="/images/mp1.jpg" width="300" height ="300" /></p>
+
+<p>Photo cred: brooklynparrot @ brooklynparrots.com</p>
+
+<p>The order <em>Psittaciformes</em> contains some of the highest numbers of endangered avian species. On the other hand, we see more parrot invaders than expected by chance. Monk parakeets (<em>Myiopsitta monachus</em>), native to South America, have been dispersed across the Northern hemisphere by the global pet trade. This species is widely successful across its introduced range, even in areas colder than the native range. Introduced populations live largely in cities, and this affinity for human-disturbed habitat may have arisen in the native range. Native populations are thought to have expanded their range in the late 1800s, when wide swathes of Argentina were converted for agricultural purposes. </p>
+
+<p><img src="/images/Nativemap.tiff" width="300" height ="300" /></p>
+
+<p>I&#39;m using genomic tools to determine if genetic differentiation patterns across monk parakeet populations are a product of adaptation to human-induced selection pressures. I&#39;m complementing genomic markers with candidate immune genes to determine if human disturbance influences pathogenic selection pressures. I&#39;m also interested in cold adaptations and phenotypic plasticity, including learning, in monk parakeets that evolved much earlier than their contemporary invasions.</p>
+
+<p>In my following posts, I&#39;ll use monk parakeets as a case study for playing around in: </p>
+
+<p><img src="/images/R.png" width="200" height ="200" /></p>
+
+<p>The codes I&#39;ll post are intended for biologists interested in learning to create graphics or run genomic analyses in R. In all posts, I&#39;m assuming you know how to install and load packages, search for help in RStudio and online, and the different classes of variables / object types in R. If you&#39;re unfamiliar with regular expression or logical statements in R, run the simplest unit of the nested expressions to get accustomed to the logic.</p>
+
+<p>For instance:</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">x</span> <span class="o">&lt;-</span> <span class="n">c</span><span class="p">(</span><span class="n">rep</span><span class="p">(</span><span class="s2">"Myiopsitta"</span><span class="p">,</span> <span class="m">10</span><span class="p">),</span> <span class="s2">"Hylocichla"</span><span class="p">)</span>
+</code></pre></div>
+<p>Use regular expression functions to filter data </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">z</span> <span class="o">&lt;-</span> <span class="n">x</span><span class="p">[</span><span class="n">grep</span><span class="p">(</span><span class="s2">"Myiopsitta"</span><span class="p">,</span> <span class="n">x</span><span class="p">)]</span>
+<span class="n">z</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">##  [1] "Myiopsitta" "Myiopsitta" "Myiopsitta" "Myiopsitta" "Myiopsitta"
+##  [6] "Myiopsitta" "Myiopsitta" "Myiopsitta" "Myiopsitta" "Myiopsitta"
+</code></pre></div>
+<p>If you don&#39;t know how <code>grep</code> works, run the expression inside the square brackets, which is the simplest unit of the nested expression. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">grep</span><span class="p">(</span><span class="s2">"Myiopsitta"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">##  [1]  1  2  3  4  5  6  7  8  9 10
+</code></pre></div>
+<p>Do the same for the function <code>grepl</code>.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">z</span> <span class="o">&lt;-</span> <span class="n">x</span><span class="p">[</span><span class="n">grepl</span><span class="p">(</span><span class="s2">"Myiopsitta"</span><span class="p">,</span> <span class="n">x</span><span class="p">)]</span>
+<span class="n">grepl</span><span class="p">(</span><span class="s2">"Myiopsitta"</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">##  [1]  TRUE  TRUE  TRUE  TRUE  TRUE  TRUE  TRUE  TRUE  TRUE  TRUE FALSE
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">z</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">##  [1] "Myiopsitta" "Myiopsitta" "Myiopsitta" "Myiopsitta" "Myiopsitta"
+##  [6] "Myiopsitta" "Myiopsitta" "Myiopsitta" "Myiopsitta" "Myiopsitta"
+</code></pre></div>
+<p>Feel free to get in touch if you find any bugs in posted code! </p>
+
+	
+</div>
+
+
+    </div>
+    <script src="/javascripts/scale.fix.js"></script>
+  </body>
+</html>

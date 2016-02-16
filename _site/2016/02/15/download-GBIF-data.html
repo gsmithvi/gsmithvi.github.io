@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Grace Smith Vidaurre</title>
+
+    <link rel="stylesheet" href="/stylesheets/styles.css">
+    <link rel="stylesheet" href="/stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="/stylesheets/bootstrap-social.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.5-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <script src="/static/bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+
+<div class="blogpost">
+	<a href="http://gsmithvi.github.io">&#8592; Home</a>
+	<h1>Downloading and filter GBIF data for mapping</h1>
+
+<p>The Global Biodiversity Information Facility (GBIF) is a compilation of presence data for a broad range of species (absence data may be included). If you&#39;re interested in birds, data is funneled into GBIF from eBird, VertNet and other datasets. You can search widely across taxa, but you may be out of luck if you study viruses or microorganisms.  </p>
+
+<p>Accessing data from GBIF only takes creating an account and writing a few lines of code. You can download by species, geographical area or other query words. In the code below, I&#39;ll take you through downloading monk parakeet observations and filtering the data prior to mapping. To run the following code, you need to create your own account on GBIF, and install the <code>rgbif</code> package.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">library</span><span class="p">(</span><span class="n">rgbif</span><span class="p">)</span>
+
+<span class="c1"># obtain taxon key for species of interest
+</span><span class="n">key</span> <span class="o">&lt;-</span> <span class="n">name_suggest</span><span class="p">(</span><span class="n">q</span> <span class="o">=</span> <span class="s2">"Myiopsitta monachus"</span><span class="p">,</span> <span class="n">rank</span> <span class="o">=</span> <span class="s2">"species"</span><span class="p">)</span><span class="o">$</span><span class="n">key</span><span class="p">[</span><span class="m">1</span><span class="p">]</span>
+<span class="n">key</span> <span class="c1"># 2479407
+</span></code></pre></div>
+<p>Since we&#39;ll be making maps in later posts, it makes sense to ensure that we&#39;re downloading sufficient data. How many Myiopsitta monachus obsvervations have coordinates?</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">occ_search</span><span class="p">(</span><span class="n">taxonKey</span><span class="o">=</span><span class="n">key</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="m">20</span><span class="p">,</span> <span class="n">hasCoordinate</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span>
+</code></pre></div>
+<p>Now you can use the taxon key to download GBIF data. The following chunk of code may look funny, since the function names don&#39;t correspond to their actual functions. The logic goes like this: 
+*once you start the download query, you can check its status
+*continue checking until the query status shows up as <code>SUCCEEDED</code> 
+*then download the zip file pulled by the query 
+*import the data to R</p>
+
+<p>You don&#39;t have to worry about saving the zip file. Once you import data to R, you can save it at any point as a .csv file in your working directory.  </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># insert your GBIF account info to start a query
+</span><span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">occ_download</span><span class="p">(</span><span class="s1">'taxonKey = 2479407'</span><span class="p">,</span> <span class="n">user</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span> <span class="n">pwd</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+                     <span class="n">email</span> <span class="o">=</span> <span class="s2">""</span><span class="p">)</span>
+
+<span class="c1"># check query status
+</span><span class="n">occ_download_meta</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span>
+
+<span class="c1"># when query is done running, download data
+</span><span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">occ_download_get</span><span class="p">(</span><span class="n">mp</span><span class="p">,</span> <span class="n">overwrite</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span>
+
+<span class="c1"># import into R and begin manipulating
+# ignore warning messages about changing class of certain variables
+</span><span class="n">suppressPackageStartupMessages</span><span class="p">(</span><span class="n">library</span><span class="p">(</span><span class="s2">"dplyr"</span><span class="p">))</span>
+<span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">tbl_df</span><span class="p">(</span><span class="n">occ_download_import</span><span class="p">(</span><span class="n">mp</span><span class="p">))</span>
+
+<span class="c1"># save data to Desktop to avoid downloading from GBIF again
+</span><span class="n">write.csv</span><span class="p">(</span><span class="n">mp</span><span class="p">,</span> <span class="n">paste</span><span class="p">(</span><span class="s2">"Myiopsitta_monachus_GBIF_"</span><span class="p">,</span> <span class="n">Sys.Date</span><span class="p">(),</span> <span class="s2">".csv"</span><span class="p">,</span> <span class="n">sep</span> <span class="o">=</span> <span class="s2">""</span><span class="p">))</span>
+</code></pre></div>
+<p>The data is in your hands! It&#39;s time to get accustomed to it and prune out any fishy observations. </p>
+<div class="highlight"><pre><code class="language-" data-lang="">## Warning in file(file, "rt"): cannot open file
+## 'Myiopsitta_monachus_GBIF_2016-02-15.csv': No such file or directory
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in file(file, "rt"): cannot open the connection
+</code></pre></div>
+<p>Here are some basic functions to explore data.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">names</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span> <span class="c1"># column names
+</span><span class="n">str</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span> <span class="c1"># information about variable types and length
+</span><span class="n">head</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span> <span class="c1"># display the head of the data frame
+</span><span class="n">View</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span> <span class="c1"># viewing data frame in new RStudio tab
+</span></code></pre></div>
+<p>Some observations may belong to other species entirely.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># are all these observations monk parakeets?
+</span><span class="n">unique</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">vernacularName</span><span class="p">)</span> 
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in unique(mp$vernacularName): object 'mp' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># coordinate system, necessary to determine points are plotting correctly
+</span><span class="n">table</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">verbatimCoordinateSystem</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in table(mp$verbatimCoordinateSystem): object 'mp' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># filter out any observations that may be of a different species
+# table(mp$vernacularName)
+# mp1 &lt;- mp[grep("grebe", mp$vernacularName, ignore.case = TRUE, invert = TRUE), ]
+# nrow(mp) 
+</span>
+<span class="c1"># do observations without a common name have the correct scientific name?
+</span><span class="n">sn</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="p">[</span><span class="n">grep</span><span class="p">(</span><span class="s2">"monk parakeet"</span><span class="p">,</span> <span class="n">mp</span><span class="o">$</span><span class="n">vernacularName</span><span class="p">,</span> <span class="n">ignore.case</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span> <span class="n">invert</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">),</span> 
+               <span class="n">grep</span><span class="p">(</span><span class="s2">"scientificName$"</span><span class="p">,</span> <span class="n">names</span><span class="p">(</span><span class="n">mp</span><span class="p">))]</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in eval(expr, envir, enclos): object 'mp' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">sn</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in eval(expr, envir, enclos): object 'sn' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># remove allospecies Myiopsitta luschi
+</span><span class="n">length</span><span class="p">(</span><span class="n">grep</span><span class="p">(</span><span class="s2">"luchsi"</span><span class="p">,</span> <span class="n">mp</span><span class="o">$</span><span class="n">scientificName</span><span class="p">))</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in grep("luchsi", mp$scientificName): object 'mp' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp2</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="p">[</span><span class="n">grep</span><span class="p">(</span><span class="s2">"luchsi"</span><span class="p">,</span> <span class="n">mp</span><span class="o">$</span><span class="n">scientificName</span><span class="p">,</span> <span class="n">invert</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">),</span> <span class="p">]</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in eval(expr, envir, enclos): object 'mp' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">nrow</span><span class="p">(</span><span class="n">mp2</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in nrow(mp2): object 'mp2' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">nrow</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span> <span class="o">-</span> <span class="n">nrow</span><span class="p">(</span><span class="n">mp2</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in nrow(mp): object 'mp' not found
+</code></pre></div>
+<p>Once you&#39;re sure all observations have at least been recorded as the species in question, make the data ready for mapping. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># remove observations without coordinates (e.g., with NAs)
+</span><span class="n">mp3</span> <span class="o">&lt;-</span> <span class="n">mp2</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">mp2</span><span class="o">$</span><span class="n">decimalLatitude</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">mp2</span><span class="o">$</span><span class="n">decimalLongitude</span><span class="p">)),</span> <span class="p">]</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in eval(expr, envir, enclos): object 'mp2' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># quality control
+# length(which(is.na(mp2$decimalLatitude) &amp; is.na(mp2$decimalLongitude))) 
+# nrow(mp2) - nrow(mp3)
+</span>
+<span class="c1"># remove sightings down by Antarctica
+</span><span class="n">mp4</span> <span class="o">&lt;-</span> <span class="n">mp3</span><span class="p">[</span><span class="o">!</span><span class="n">mp3</span><span class="o">$</span><span class="n">decimalLatitude</span> <span class="o">&lt;</span> <span class="m">-50</span><span class="p">,]</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in eval(expr, envir, enclos): object 'mp3' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># more quality control
+# length(which(mp3$decimalLatitude &lt; -50)) == nrow(mp3) - nrow(mp4)
+</span></code></pre></div>
+<p>Around fall 2014, GBIF uploaded a whole lot of absence data, which looks really strange when plotted on a map. I was assured by a GBIF data scientist that most absence data will have an <code>absent</code> tag associated with the <code>occurrenceStatus</code> variable, and should thus be easy to remove. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">table</span><span class="p">(</span><span class="n">mp4</span><span class="o">$</span><span class="n">occurrenceStatus</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in table(mp4$occurrenceStatus): object 'mp4' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># remove data that are actually absences
+</span><span class="n">mp5</span> <span class="o">&lt;-</span> <span class="n">mp4</span><span class="p">[</span><span class="n">grep</span><span class="p">(</span><span class="s2">"absent"</span><span class="p">,</span> <span class="n">mp4</span><span class="o">$</span><span class="n">occurrenceStatus</span><span class="p">,</span> <span class="n">invert</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span> <span class="n">ignore.case</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">),</span> <span class="p">]</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in eval(expr, envir, enclos): object 'mp4' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># quality control
+# length(grep("absent", mp4$occurrenceStatus, ignore.case = TRUE))
+# nrow(mp4) - nrow(mp5)
+</span>
+<span class="c1"># manipulate the data to retain columns useful for mapping
+</span><span class="n">mp6</span> <span class="o">&lt;-</span> <span class="n">mp5</span><span class="p">[,</span> <span class="n">grep</span><span class="p">(</span><span class="n">paste</span><span class="p">(</span><span class="n">c</span><span class="p">(</span><span class="s2">"decimalLatitude"</span><span class="p">,</span> <span class="s2">"decimalLongitude"</span><span class="p">,</span> <span class="s2">"^genus$"</span><span class="p">,</span> <span class="s2">"speciesKey"</span><span class="p">,</span> <span class="s2">"vernacularName"</span> <span class="p">,</span> <span class="s2">"year"</span><span class="p">,</span> 
+                              <span class="s2">"taxonID"</span><span class="p">,</span> <span class="s2">"scientificName$"</span><span class="p">,</span> <span class="s2">"verbatimLocality"</span><span class="p">,</span> <span class="s2">"stateProvince"</span><span class="p">,</span> 
+                              <span class="s2">"gbifID"</span><span class="p">,</span> <span class="s2">"verbatimCoordinateSystem"</span><span class="p">,</span> <span class="s2">"occurrenceStatus"</span><span class="p">),</span> 
+                            <span class="n">collapse</span> <span class="o">=</span> <span class="s2">"|"</span><span class="p">),</span> <span class="n">names</span><span class="p">(</span><span class="n">mp5</span><span class="p">))]</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in eval(expr, envir, enclos): object 'mp5' not found
+</code></pre></div>
+<p>Use the basic functions mentioned above to examine the structure of mp6.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">str</span><span class="p">(</span><span class="n">mp6</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in str(mp6): object 'mp6' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">names</span><span class="p">(</span><span class="n">mp6</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in eval(expr, envir, enclos): object 'mp6' not found
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">nrow</span><span class="p">(</span><span class="n">mp6</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## Error in nrow(mp6): object 'mp6' not found
+</code></pre></div>
+<p>We are done! After creating a .csv file in the working directory, we can move on to use the data for mapping purposes.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">write.csv</span><span class="p">(</span><span class="n">mp6</span><span class="p">,</span> <span class="n">paste</span><span class="p">(</span><span class="s2">"Myiopsitta_monachus_filtered_GBIF_"</span><span class="p">,</span> <span class="n">Sys.Date</span><span class="p">(),</span> <span class="s2">".csv"</span><span class="p">,</span> <span class="n">sep</span> <span class="o">=</span> <span class="s2">""</span><span class="p">))</span>
+</code></pre></div>
+	
+</div>
+
+
+    </div>
+    <script src="/javascripts/scale.fix.js"></script>
+  </body>
+</html>

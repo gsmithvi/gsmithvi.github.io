@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Grace Smith Vidaurre</title>
+
+    <link rel="stylesheet" href="/stylesheets/styles.css">
+    <link rel="stylesheet" href="/stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="/stylesheets/bootstrap-social.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.5-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <script src="/static/bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+
+<div class="blogpost">
+	<a href="http://gsmithvi.github.io">&#8592; Home</a>
+	<h1>ggmapping</h1>
+
+<p>R has several packages for making maps, including the packages <code>maps</code> and <code>ggmap</code>. The latter uses smooth aesthetics of <code>ggplot</code> to make really good-looking maps. In <code>ggmaps</code>, there are several options for map tile types or static map backgrounds, including Google and Stamen maps. Check out <a href="https://www.nceas.ucsb.edu/%7Efrazier/RSpatialGuides/ggmap/ggmapCheatsheet.pdf">this ggmap cheat sheet</a> to get a look at the different mapping backgrounds available. Stamen maps take a little while to download at high resolution, but yield a nice final product. One downside of using <code>ggmap</code> is that global maps aren&#39;t available through Google or Stamen maps. </p>
+
+<p>Here, you can download a Stamen map of the native monk parakeet range, then overlay GBIF sightings by country. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">library</span><span class="p">(</span><span class="n">ggmap</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">ggplot2</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">maptools</span><span class="p">)</span>  <span class="c1">#for shapefiles
+</span><span class="n">library</span><span class="p">(</span><span class="n">scales</span><span class="p">)</span>  <span class="c1">#for transparency
+</span><span class="n">library</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">rgdal</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">read.csv</span><span class="p">(</span><span class="n">paste</span><span class="p">(</span><span class="s2">"Myiopsitta_monachus_filtered_GBIF_"</span><span class="p">,</span> <span class="n">Sys.Date</span><span class="p">(),</span> <span class="s2">".csv"</span><span class="p">,</span> <span class="n">sep</span> <span class="o">=</span> <span class="s2">""</span><span class="p">),</span> <span class="n">header</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span>
+</code></pre></div>
+<p>The GBIF data needs to be filtered for South American sightings</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp1</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="p">[</span><span class="n">mp</span><span class="o">$</span><span class="n">decimalLatitude</span> <span class="o">&lt;=</span> <span class="m">0</span> <span class="o">&amp;</span> <span class="n">mp</span><span class="o">$</span><span class="n">decimalLongitude</span> <span class="o">&lt;=</span> <span class="m">0</span><span class="p">,</span> <span class="p">]</span>
+</code></pre></div>
+<p>How many countries are in this filtered dataset?</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">table</span><span class="p">(</span><span class="n">mp1</span><span class="o">$</span><span class="n">countryCode</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## 
+##   AE   AR   BE   BO   BR   BS   CL   DE   ES   FR   GB   GR   IL   IT   KY 
+##    0 2053    0  137  473    0  553    0    0    0    0    0    0    0    0 
+##   MX   PR   PT   PY   US   UY   VA 
+##    0    0    0  136    0  173    0
+</code></pre></div>
+<p>The <code>countryCode</code> variable is a factor with empty levels, 
+these empties need to be dropped before mapping</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp1</span><span class="o">$</span><span class="n">countryCode</span> <span class="o">&lt;-</span> <span class="n">droplevels</span><span class="p">(</span><span class="n">mp1</span><span class="o">$</span><span class="n">countryCode</span><span class="p">)</span>
+<span class="n">table</span><span class="p">(</span><span class="n">mp1</span><span class="o">$</span><span class="n">countryCode</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## 
+##   AR   BO   BR   CL   PY   UY 
+## 2053  137  473  553  136  173
+</code></pre></div>
+<p>Download the Stamen map, you need Internet for this. A higher zoom argument makes the download time much longer, but gives you better resolution of waterways and other natural boundaries</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">bbox</span> <span class="o">&lt;-</span> <span class="n">c</span><span class="p">(</span><span class="n">left</span> <span class="o">=</span> <span class="m">-80</span><span class="p">,</span> <span class="n">bottom</span> <span class="o">=</span> <span class="m">-45</span><span class="p">,</span> <span class="n">right</span> <span class="o">=</span> <span class="m">-40</span><span class="p">,</span> <span class="n">top</span> <span class="o">=</span> <span class="m">2</span><span class="p">)</span>
+<span class="n">smap</span> <span class="o">&lt;-</span> <span class="n">get_stamenmap</span><span class="p">(</span><span class="n">bbox</span> <span class="o">=</span> <span class="n">bbox</span><span class="p">,</span> <span class="n">zoom</span> <span class="o">=</span> <span class="m">8</span><span class="p">,</span>
+                      <span class="n">maptype</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="s2">"toner-background"</span><span class="p">))</span>
+</code></pre></div>
+<p>Read in species distribution polygon and initialize data for mapping</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp.distr</span> <span class="o">&lt;-</span> <span class="n">readOGR</span><span class="p">(</span><span class="s2">"./_data"</span><span class="p">,</span> <span class="s2">"Myiopsitta_monachus_1608_NS"</span><span class="p">)</span>
+
+<span class="n">dats</span> <span class="o">&lt;-</span> <span class="n">data.frame</span><span class="p">(</span><span class="n">lon</span> <span class="o">=</span> <span class="n">mp1</span><span class="o">$</span><span class="n">decimalLongitude</span><span class="p">,</span> <span class="n">lat</span> <span class="o">=</span> <span class="n">mp1</span><span class="o">$</span><span class="n">decimalLatitude</span><span class="p">,</span> 
+                   <span class="n">country</span> <span class="o">=</span> <span class="n">mp1</span><span class="o">$</span><span class="n">countryCode</span><span class="p">)</span>
+
+<span class="n">fill.cols</span> <span class="o">&lt;-</span> <span class="n">diverge_hcl</span><span class="p">(</span><span class="n">length</span><span class="p">(</span><span class="n">table</span><span class="p">(</span><span class="n">dats</span><span class="o">$</span><span class="n">co</span><span class="p">)),</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.6</span><span class="p">)</span>
+
+<span class="n">cols</span> <span class="o">&lt;-</span> <span class="n">rep</span><span class="p">(</span><span class="s2">"black"</span><span class="p">,</span> <span class="n">length</span><span class="p">(</span><span class="n">fill.cols</span><span class="p">))</span>
+</code></pre></div>
+<p>Overlay GBIF sightings and the species distribution onto the Stamen map.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">tiff</span><span class="p">(</span><span class="s2">"mymon-south-america.tiff"</span><span class="p">,</span> <span class="n">res</span> <span class="o">=</span> <span class="m">300</span><span class="p">,</span> <span class="n">units</span> <span class="o">=</span> <span class="s2">"cm"</span><span class="p">,</span> <span class="n">width</span> <span class="o">=</span> <span class="m">20</span><span class="p">,</span>
+     <span class="n">height</span> <span class="o">=</span> <span class="m">20</span><span class="p">)</span>
+
+<span class="n">ggmap</span><span class="p">(</span><span class="n">smap</span><span class="p">)</span> <span class="o">+</span> 
+
+  <span class="n">geom_polygon</span><span class="p">(</span><span class="n">aes</span><span class="p">(</span><span class="n">x</span> <span class="o">=</span> <span class="n">long</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">lat</span><span class="p">,</span> <span class="n">group</span> <span class="o">=</span> <span class="n">group</span><span class="p">),</span> <span class="n">color</span> <span class="o">=</span> <span class="n">topo.colors</span><span class="p">(</span><span class="m">12</span><span class="p">)[</span><span class="m">5</span><span class="p">],</span> <span class="n">fill</span> <span class="o">=</span> <span class="n">topo.colors</span><span class="p">(</span><span class="m">12</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.6</span><span class="p">)[</span><span class="m">7</span><span class="p">],</span> <span class="n">size</span> <span class="o">=</span> <span class="m">1</span><span class="p">,</span> <span class="n">data</span> <span class="o">=</span> <span class="n">mp.distr</span><span class="p">)</span> <span class="o">+</span>
+
+  <span class="n">geom_point</span><span class="p">(</span><span class="n">aes</span><span class="p">(</span><span class="n">x</span> <span class="o">=</span> <span class="n">lon</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">lat</span><span class="p">,</span> <span class="n">color</span> <span class="o">=</span> <span class="n">country</span><span class="p">,</span> <span class="n">fill</span> <span class="o">=</span> <span class="n">country</span><span class="p">,</span> <span class="n">size</span> <span class="o">=</span> <span class="n">country</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">country</span><span class="p">),</span> <span class="n">data</span> <span class="o">=</span> <span class="n">dats</span><span class="p">)</span> <span class="o">+</span> 
+
+  <span class="n">scale_fill_manual</span><span class="p">(</span><span class="n">values</span> <span class="o">=</span> <span class="n">fill.cols</span><span class="p">)</span> <span class="o">+</span>
+
+  <span class="n">scale_colour_manual</span><span class="p">(</span><span class="n">values</span> <span class="o">=</span> <span class="n">cols</span><span class="p">)</span> <span class="o">+</span> 
+
+  <span class="n">scale_shape_manual</span><span class="p">(</span><span class="n">values</span> <span class="o">=</span> <span class="n">rep</span><span class="p">(</span><span class="m">21</span><span class="p">,</span> <span class="n">length</span><span class="p">(</span><span class="n">fill.cols</span><span class="p">)))</span> <span class="o">+</span> 
+
+  <span class="n">scale_size_manual</span><span class="p">(</span><span class="n">values</span> <span class="o">=</span> <span class="n">rep</span><span class="p">(</span><span class="m">4</span><span class="p">,</span> <span class="n">length</span><span class="p">(</span><span class="n">fill.cols</span><span class="p">)))</span> 
+
+<span class="n">dev.off</span><span class="p">()</span>
+</code></pre></div>
+<p><img src="/images/mymon-south-america.tiff" width="550" height ="600" /></p>
+
+	
+</div>
+
+
+    </div>
+    <script src="/javascripts/scale.fix.js"></script>
+  </body>
+</html>

@@ -1,0 +1,196 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Grace Smith Vidaurre</title>
+
+    <link rel="stylesheet" href="/stylesheets/styles.css">
+    <link rel="stylesheet" href="/stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="/stylesheets/bootstrap-social.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.5-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <script src="/static/bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+
+<div class="blogpost">
+	<a href="http://gsmithvi.github.io">&#8592; Home</a>
+	<h1>Download and filter GBIF data for mapping</h1>
+
+<p>The <a href="http://www.gbif.org">Global Biodiversity Information Facility (GBIF)</a>is a compilation of presence data for a broad range of species (absence data may be included). If you&#39;re interested in birds, data is funneled into GBIF from eBird, VertNet and other datasets. You can search widely across taxa, but you may be out of luck if you study viruses or microorganisms.  </p>
+
+<p>Accessing data from GBIF only takes creating an account and writing a few lines of code. You can download by species, geographical area or other query words. In the code below, I&#39;ll take you through downloading monk parakeet observations and filtering the data prior to mapping. To run the following code, you need to create your own account on GBIF, and install the <code>rgbif</code> package.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">library</span><span class="p">(</span><span class="n">rgbif</span><span class="p">)</span>
+
+<span class="c1"># obtain taxon key for species of interest
+</span><span class="n">key</span> <span class="o">&lt;-</span> <span class="n">name_suggest</span><span class="p">(</span><span class="n">q</span> <span class="o">=</span> <span class="s2">"Myiopsitta monachus"</span><span class="p">,</span> <span class="n">rank</span> <span class="o">=</span> <span class="s2">"species"</span><span class="p">)</span><span class="o">$</span><span class="n">key</span><span class="p">[</span><span class="m">1</span><span class="p">]</span>
+<span class="n">key</span> <span class="c1"># 2479407
+</span></code></pre></div>
+<p>Since we&#39;ll be making maps in later posts, it makes sense to ensure that we&#39;re downloading sufficient data. How many Myiopsitta monachus obsvervations have coordinates?</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">occ_search</span><span class="p">(</span><span class="n">taxonKey</span> <span class="o">=</span> <span class="n">key</span><span class="p">,</span> <span class="n">limit</span> <span class="o">=</span> <span class="m">20</span><span class="p">,</span> <span class="n">hasCoordinate</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span>
+</code></pre></div>
+<p>Now you can use the taxon key to download GBIF data. The following chunk of code may look funny, since the function names don&#39;t correspond to their actual functions. The logic is more straightforward than the functions&#39; names.</p>
+
+<ul>
+<li><p>once you start the download query, you can check its status</p></li>
+<li><p>continue checking until the query status shows up as <code>SUCCEEDED</code> </p></li>
+<li><p>then download the zip file pulled by the query </p></li>
+<li><p>import the data to R</p></li>
+</ul>
+
+<p>You don&#39;t have to worry about saving the zip file. Once you import data to R, you can save it at any point as a .csv file in your working directory.  </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># insert your GBIF account info to start a query
+</span><span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">occ_download</span><span class="p">(</span><span class="s1">'taxonKey = 2479407'</span><span class="p">,</span> <span class="n">user</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span> <span class="n">pwd</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+                     <span class="n">email</span> <span class="o">=</span> <span class="s2">""</span><span class="p">)</span>
+
+<span class="c1"># check query status
+</span><span class="n">occ_download_meta</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span>
+
+<span class="c1"># when query is done running, download data
+</span><span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">occ_download_get</span><span class="p">(</span><span class="n">mp</span><span class="p">,</span> <span class="n">overwrite</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span>
+
+<span class="c1"># import into R and begin manipulating
+# ignore warning messages about changing class of certain variables
+</span><span class="n">suppressPackageStartupMessages</span><span class="p">(</span><span class="n">library</span><span class="p">(</span><span class="s2">"dplyr"</span><span class="p">))</span>
+<span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">tbl_df</span><span class="p">(</span><span class="n">occ_download_import</span><span class="p">(</span><span class="n">mp</span><span class="p">))</span>
+
+<span class="c1"># save data to Desktop to avoid downloading from GBIF again
+</span><span class="n">write.csv</span><span class="p">(</span><span class="n">mp</span><span class="p">,</span> <span class="n">paste</span><span class="p">(</span><span class="s2">"Myiopsitta_monachus_GBIF_"</span><span class="p">,</span> <span class="n">Sys.Date</span><span class="p">(),</span> <span class="s2">".csv"</span><span class="p">,</span> <span class="n">sep</span> <span class="o">=</span> <span class="s2">""</span><span class="p">))</span>
+</code></pre></div>
+<p>The data is in your hands! It&#39;s time to familiarize yourself with the data and prune out any fishy observations. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">read.csv</span><span class="p">(</span><span class="n">paste</span><span class="p">(</span><span class="s2">"Myiopsitta_monachus_GBIF_"</span><span class="p">,</span> <span class="n">Sys.Date</span><span class="p">(),</span> <span class="s2">".csv"</span><span class="p">,</span> <span class="n">sep</span> <span class="o">=</span> <span class="s2">""</span><span class="p">),</span> <span class="n">header</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span>
+</code></pre></div>
+<p>Here are some basic functions to explore data.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">names</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span> <span class="c1"># column names
+</span><span class="n">str</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span> <span class="c1"># information about variable types and length
+</span><span class="n">head</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span> <span class="c1"># display the head of the data frame
+</span><span class="n">View</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span> <span class="c1"># viewing data frame in new RStudio tab
+</span></code></pre></div>
+<p>Some observations may belong to other species entirely, but that isn&#39;t the case here.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">unique</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">vernacularName</span><span class="p">)</span> 
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## [1] Monk Parakeet                                                            
+## [2]                                                                          
+## [3] Monk Parakeet; Cockatoos; Parrots; Birds; vertebrates; chordates; animals
+## [4] Monk Parakeet, Quaker Parrot                                             
+## [5] Monk Parakeet (Cliff)                                                    
+## [6] MONK PARAKEET                                                            
+## [7] munkpapagoi; Monk Parakeet                                               
+## 7 Levels:  Monk Parakeet MONK PARAKEET ... munkpapagoi; Monk Parakeet
+</code></pre></div>
+<p>You can use regular expression to remove any observations that may belong to a different species</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">table</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">vernacularName</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## 
+##                                                                           
+##                                                                      3524 
+##                                                             Monk Parakeet 
+##                                                                     47267 
+##                                                             MONK PARAKEET 
+##                                                                         1 
+##                                                     Monk Parakeet (Cliff) 
+##                                                                         7 
+##                                              Monk Parakeet, Quaker Parrot 
+##                                                                         2 
+## Monk Parakeet; Cockatoos; Parrots; Birds; vertebrates; chordates; animals 
+##                                                                        79 
+##                                                munkpapagoi; Monk Parakeet 
+##                                                                         1
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp1</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="p">[</span><span class="n">grep</span><span class="p">(</span><span class="s2">"luchsi"</span><span class="p">,</span> <span class="n">mp</span><span class="o">$</span><span class="n">scientificName</span><span class="p">,</span> <span class="n">ignore.case</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span> <span class="n">invert</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">),</span> <span class="p">]</span>
+<span class="n">nrow</span><span class="p">(</span><span class="n">mp1</span><span class="p">)</span> 
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## [1] 50839
+</code></pre></div>
+<p>Coordinate system, necessary to determine points are plotting correctly</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">table</span><span class="p">(</span><span class="n">mp1</span><span class="o">$</span><span class="n">verbatimCoordinateSystem</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## 
+##                                 decimal degrees          deg. min. sec. 
+##                   50573                      16                      26 
+## Degrees Minutes Seconds                     UTM 
+##                       5                     219
+</code></pre></div>
+<p>Do observations without a common name have the correct scientific name? </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">sn</span> <span class="o">&lt;-</span> <span class="n">mp1</span><span class="p">[</span><span class="n">grep</span><span class="p">(</span><span class="s2">"monk parakeet"</span><span class="p">,</span> <span class="n">mp1</span><span class="o">$</span><span class="n">vernacularName</span><span class="p">,</span> <span class="n">ignore.case</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span> <span class="n">invert</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">),</span> 
+               <span class="n">grep</span><span class="p">(</span><span class="s2">"scientificName$"</span><span class="p">,</span> <span class="n">names</span><span class="p">(</span><span class="n">mp1</span><span class="p">))]</span>
+<span class="n">unique</span><span class="p">(</span><span class="n">sn</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## [1] Myiopsitta monachus (Boddaert, 1783)              
+## [2] Myiopsitta monachus cotorra (Vieillot, 1818)      
+## [3] Myiopsitta monachus subsp. monachus               
+## [4] Myiopsitta monachus calita (Jardine &amp; Selby, 1830)
+## 6 Levels: Myiopsitta luchsi (Finsch, 1868) ...
+</code></pre></div>
+<p>Once you&#39;re sure all observations have at least been recorded as the species in question, make the data ready for mapping. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># remove observations without coordinates (e.g., with NAs)
+</span><span class="n">mp2</span> <span class="o">&lt;-</span> <span class="n">mp1</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">mp1</span><span class="o">$</span><span class="n">decimalLatitude</span><span class="p">)</span> <span class="o">&amp;</span> <span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">mp1</span><span class="o">$</span><span class="n">decimalLongitude</span><span class="p">)),</span> <span class="p">]</span>
+
+<span class="c1"># quality control
+# length(which(is.na(mp1$decimalLatitude) &amp; is.na(mp1$decimalLongitude))) 
+# nrow(mp1) - nrow(mp2)
+</span>
+<span class="c1"># remove sightings down by Antarctica
+</span><span class="n">mp3</span> <span class="o">&lt;-</span> <span class="n">mp2</span><span class="p">[</span><span class="o">!</span><span class="n">mp2</span><span class="o">$</span><span class="n">decimalLatitude</span> <span class="o">&lt;</span> <span class="m">-50</span><span class="p">,]</span>
+
+<span class="c1"># more quality control
+# length(which(mp2$decimalLatitude &lt; -50)) == nrow(mp2) - nrow(mp3)
+</span></code></pre></div>
+<p>Around fall 2014, GBIF uploaded a whole lot of absence data, which looks really strange when plotted on a map. I was assured by a GBIF data scientist that most absence data will have an <code>absent</code> tag associated with the <code>occurrenceStatus</code> variable, and should thus be easy to remove. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">table</span><span class="p">(</span><span class="n">mp3</span><span class="o">$</span><span class="n">occurrenceStatus</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## 
+##                                absent confirmed breeding 
+##              47334               2589                 11 
+##            present 
+##                108
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># remove data that are actually absences
+</span><span class="n">mp4</span> <span class="o">&lt;-</span> <span class="n">mp3</span><span class="p">[</span><span class="n">grep</span><span class="p">(</span><span class="s2">"absent"</span><span class="p">,</span> <span class="n">mp3</span><span class="o">$</span><span class="n">occurrenceStatus</span><span class="p">,</span> <span class="n">invert</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span> <span class="n">ignore.case</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">),</span> <span class="p">]</span>
+
+<span class="c1"># quality control
+# length(grep("absent", mp3$occurrenceStatus, ignore.case = TRUE))
+# nrow(mp3) - nrow(mp4)
+</span>
+<span class="c1"># manipulate the data to retain columns useful for mapping
+</span><span class="n">mp5</span> <span class="o">&lt;-</span> <span class="n">mp4</span><span class="p">[,</span> <span class="n">grep</span><span class="p">(</span><span class="n">paste</span><span class="p">(</span><span class="n">c</span><span class="p">(</span><span class="s2">"decimalLatitude"</span><span class="p">,</span> <span class="s2">"decimalLongitude"</span><span class="p">,</span> <span class="s2">"^genus$"</span><span class="p">,</span> <span class="s2">"speciesKey"</span><span class="p">,</span> <span class="s2">"vernacularName"</span> <span class="p">,</span> <span class="s2">"year"</span><span class="p">,</span> 
+                              <span class="s2">"taxonID"</span><span class="p">,</span> <span class="s2">"scientificName$"</span><span class="p">,</span> <span class="s2">"verbatimLocality"</span><span class="p">,</span> <span class="s2">"stateProvince"</span><span class="p">,</span> 
+                              <span class="s2">"gbifID"</span><span class="p">,</span> <span class="s2">"verbatimCoordinateSystem"</span><span class="p">,</span> <span class="s2">"occurrenceStatus"</span><span class="p">),</span> 
+                            <span class="n">collapse</span> <span class="o">=</span> <span class="s2">"|"</span><span class="p">),</span> <span class="n">names</span><span class="p">(</span><span class="n">mp4</span><span class="p">))]</span>
+</code></pre></div>
+<p>Use the basic functions mentioned above to examine the structure of mp6.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">str</span><span class="p">(</span><span class="n">mp5</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## 'data.frame':    47453 obs. of  13 variables:
+##  $ gbifID                  : int  593683661 593689298 593701262 593713668 593722845 593748880 593748887 593752425 593755094 593760948 ...
+##  $ decimalLatitude         : num  25.7 29.7 32.8 41.2 28 ...
+##  $ decimalLongitude        : num  -80.3 -95.4 -96.7 -73.1 -82.7 ...
+##  $ genus                   : Factor w/ 1 level "Myiopsitta": 1 1 1 1 1 1 1 1 1 1 ...
+##  $ occurrenceStatus        : Factor w/ 4 levels "","absent","confirmed breeding",..: 1 1 1 1 1 1 1 1 1 1 ...
+##  $ scientificName          : Factor w/ 6 levels "Myiopsitta luchsi (Finsch, 1868)",..: 2 2 2 2 2 2 2 2 2 2 ...
+##  $ stateProvince           : Factor w/ 257 levels "","A Coruña",..: 94 233 233 71 94 233 233 169 233 149 ...
+##  $ taxonID                 : int  NA NA NA NA NA NA NA NA NA NA ...
+##  $ verbatimCoordinateSystem: Factor w/ 5 levels "","decimal degrees",..: 1 1 1 1 1 1 1 1 1 1 ...
+##  $ verbatimLocality        : Factor w/ 329 levels "","; ; ; ; ; ; ;",..: 1 1 1 1 1 1 1 1 1 1 ...
+##  $ vernacularName          : Factor w/ 7 levels "","Monk Parakeet",..: 2 2 2 2 2 2 2 2 2 2 ...
+##  $ year                    : int  2011 2011 2011 2011 2011 2011 2011 2011 2011 2011 ...
+##  $ speciesKey              : int  2479407 2479407 2479407 2479407 2479407 2479407 2479407 2479407 2479407 2479407 ...
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">names</span><span class="p">(</span><span class="n">mp5</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">##  [1] "gbifID"                   "decimalLatitude"         
+##  [3] "decimalLongitude"         "genus"                   
+##  [5] "occurrenceStatus"         "scientificName"          
+##  [7] "stateProvince"            "taxonID"                 
+##  [9] "verbatimCoordinateSystem" "verbatimLocality"        
+## [11] "vernacularName"           "year"                    
+## [13] "speciesKey"
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">nrow</span><span class="p">(</span><span class="n">mp5</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## [1] 47453
+</code></pre></div>
+<p>We are done! After creating a .csv file in the working directory, we can move on to use the data for mapping purposes.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">write.csv</span><span class="p">(</span><span class="n">mp5</span><span class="p">,</span> <span class="n">paste</span><span class="p">(</span><span class="s2">"Myiopsitta_monachus_filtered_GBIF_"</span><span class="p">,</span> <span class="n">Sys.Date</span><span class="p">(),</span> <span class="s2">".csv"</span><span class="p">,</span> <span class="n">sep</span> <span class="o">=</span> <span class="s2">""</span><span class="p">))</span>
+</code></pre></div>
+	
+</div>
+
+
+    </div>
+    <script src="/javascripts/scale.fix.js"></script>
+  </body>
+</html>

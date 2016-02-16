@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Grace Smith Vidaurre</title>
+
+    <link rel="stylesheet" href="/stylesheets/styles.css">
+    <link rel="stylesheet" href="/stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="/stylesheets/bootstrap-social.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.5-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <script src="/static/bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+
+<div class="blogpost">
+	<a href="http://gsmithvi.github.io">&#8592; Home</a>
+	<p>Interactive graphics are an excellent way to show off your research without being too wordy. A former labmate, <a href="http://marceloarayasalas.weebly.com">Marcelo Araya Salas</a>, had been playing around with making movies or gifs in R, and I thought it would be neat to use these tricks to create a time lapse map of the species I study (yes, monk parakeets again). I wasn&#39;t able to finish this map in time to incorporate it into a poster I presented in January, but I&#39;m happy to be posting the code here and now.  </p>
+
+<p>In this post, I&#39;m making use of the <code>maps</code> package. I chose <code>maps</code> because I wanted to demonstrate the global extent of monk parakeet invasions, relative to their native range. I prefer the aestethics of <code>ggmap</code> whenever possible, but <code>ggmap</code> doesn&#39;t support maps on a global scale. It should be easy to replace the <code>maps</code> code with code from your preferred mapping package. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">library</span><span class="p">(</span><span class="n">maps</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">ggmap</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">mapdata</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">maptools</span><span class="p">)</span> 
+<span class="n">library</span><span class="p">(</span><span class="n">scales</span><span class="p">)</span>  
+<span class="n">library</span><span class="p">(</span><span class="n">RColorBrewer</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">rgeos</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">rgdal</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">animation</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">pbapply</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">shapefiles</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">ggplot2</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">animation</span><span class="p">)</span>
+</code></pre></div>
+<p>Let&#39;s start by intializing all the information that will be overlaid on the map, including:
+*Global Biodiversity Information Facility (GBIF) observations, grouped by time period
+*Native distribution polygon
+*Genomic research sampling sites</p>
+
+<h3>Prepare GBIF data</h3>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">read.csv</span><span class="p">(</span><span class="s2">"./_data/mymon.csv"</span><span class="p">,</span> <span class="n">header</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span> <span class="n">row.names</span> <span class="o">=</span> <span class="m">1</span><span class="p">)</span>
+<span class="n">str</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span>
+</code></pre></div>
+<p>Which years are represented in the GBIF data?</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">table</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">)</span>
+<span class="n">length</span><span class="p">(</span><span class="n">table</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">))</span>
+</code></pre></div>
+<p>I&#39;m going to move forwards by keeping the original years as time periods, rather than grouping observations into a smaller subset of time periods. This means the final gif will be composed of 62 frames, which sounds like a lot of files to create. Fortunately, we can customize the code to delete these intermediate frames once they&#39;ve been incorporated into the final gif. Here, the GBIF data have to be ordered by year. As you&#39;ll see below, the variable <code>time.periods</code> will be used as the indexing variable to create each map within a loop. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">time.periods</span> <span class="o">&lt;-</span> <span class="n">unique</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">[</span><span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">)])[</span><span class="n">order</span><span class="p">(</span><span class="n">unique</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">[</span><span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">)]),</span> <span class="n">decreasing</span> <span class="o">=</span> <span class="n">FALSE</span><span class="p">)]</span> 
+<span class="n">time.periods</span>
+</code></pre></div>
+<p>I&#39;m also creating latitude and longitude vectors that will be used to intialize the map prior to overlaying data. This is a good trick when using the <code>maps</code> package for mapping, which requires a map intialization step prior to the actual mapping. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">map.lat</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="o">$</span><span class="n">decimalLatitude</span>
+<span class="n">map.lon</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="o">$</span><span class="n">decimalLongitude</span>
+</code></pre></div>
+<h3>Prepare <em>Myiopsitta monachus</em> species distribution polygon</h3>
+
+<p>This code creates an object of class <code>SpatialPolygonsDataFrame</code>, which is easy to overlay on most maps. The tricky part here is that this species distribution contains polygons in the introduced range, which I want to exlcude. In a previous post (<code>ggmapping</code>), these introduced range polygons were automatically excluded by simply creating a map in the Southern hemisphere. Since I&#39;m creating a global map, I have to manually filter only the Souther hemisphere polygon.</p>
+
+<p>I got lucky here - it was easy to exclude the introduced range polygons based on size. The code below will be unfamiliar if you&#39;ve never heard of S4 objects. If so, check out <a href="http://adv-r.had.co.nz/S4.html">Hadley Wickham&#39;s useful explanation</a>. </p>
+
+<p>Most objects you manipulate in R are S3 objects. S4 objects are more rigid and have specific methods for indexing, etc. The structure of the following S4 polygon seems extremely complex (slots within lists and vice versa), and it can be a pain when figuring out how to index these things for the first time. For the <code>SpatialPolygonsDataFrame</code> object below, it helps if you think about it as nothing more than a data frame with 2 dimensions (rows and columns).</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp.distr</span> <span class="o">&lt;-</span> <span class="n">readShapePoly</span><span class="p">(</span><span class="s2">"./_data/Myiopsitta_monachus_1608_NS.shp"</span><span class="p">)</span> 
+<span class="c1"># str(mp.distr)
+</span><span class="n">class</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">str</span><span class="p">(</span><span class="n">mp.distr</span><span class="o">@</span><span class="n">data</span><span class="p">)</span> <span class="c1"># this data frame contains metadata, but no regional information
+</span><span class="n">str</span><span class="p">(</span><span class="n">mp.distr</span><span class="o">@</span><span class="n">polygons</span><span class="p">)</span> <span class="c1"># yup, it's complicated
+</span></code></pre></div>
+<p>I resorted to extracting the largest polygon in the <code>SpatialPolygonsDataFrame</code>, because regional information isn&#39;t available per polygon. Again, it was just lucky that I happened to be interested in the largest polygon. You may run into situations that require more customization, and if so, hopefully those polygons will contain more information that can be used for indexing. Note the use of <code>@</code> indexing to extract specific slots of the S4 object. </p>
+
+<p>The largest polygon happens to the the third in the list, as we learn from using <code>sapply</code>. The third polygon can be pulled out by simple square bracket indexing.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">sapply</span><span class="p">(</span><span class="n">slot</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">,</span> <span class="s2">"polygons"</span><span class="p">),</span> <span class="k">function</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="n">slot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">"area"</span><span class="p">))</span>
+
+<span class="n">class</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">[</span><span class="m">3</span><span class="p">,</span> <span class="p">])</span> <span class="c1"># correct class for plotting
+</span>
+<span class="c1"># filtering South American polygon
+</span><span class="n">mp.distr2</span> <span class="o">&lt;-</span> <span class="n">fortify</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">[</span><span class="m">3</span><span class="p">,</span> <span class="p">])</span>
+<span class="n">mp.distr2</span> <span class="o">&lt;-</span> <span class="n">mp.distr2</span><span class="p">[</span><span class="n">mp.distr2</span><span class="o">$</span><span class="n">lat</span> <span class="o">&lt;=</span> <span class="m">0</span><span class="p">,</span> <span class="p">]</span> <span class="c1"># removing any points in the Eastern hemisphere
+</span></code></pre></div>
+<h3>Download sampling site coordinates</h3>
+
+<p>Here&#39;s a cool function from <code>ggmap</code>, called <code>geocode</code>. This function allows you to search for locations by name in Google databases, and returns geographic coordinates that you can use for mapping. I&#39;ve included sites where invasive or native samples were collected and used in restriction enzyme associated DNA sequencing (RAD-seq). </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">RAD_seq</span> <span class="o">&lt;-</span> <span class="n">c</span><span class="p">(</span><span class="s2">"Algarrobo, Argentina"</span><span class="p">,</span> <span class="s2">"Entre Rios, Argentina"</span><span class="p">,</span> <span class="s2">"Buenos Aires, Argentina"</span><span class="p">,</span> <span class="s2">"Parque Luro, Argentina"</span><span class="p">,</span><span class="s2">"Madrid, Spain"</span><span class="p">,</span> <span class="s2">"Zaragoza, Spain"</span><span class="p">,</span> <span class="s2">"Barcelona, Spain"</span><span class="p">,</span> <span class="s2">"Sevilla, Spain"</span><span class="p">,</span> <span class="s2">"Mallorca, Spain"</span><span class="p">,</span> <span class="s2">"Gran Canaria, Canary Islands"</span><span class="p">,</span> <span class="s2">"Connecticut"</span><span class="p">,</span> <span class="s2">"Illinois"</span><span class="p">,</span> <span class="s2">"Washington State"</span><span class="p">,</span> <span class="s2">"Florida"</span><span class="p">)</span>
+<span class="n">coords</span> <span class="o">&lt;-</span> <span class="n">geocode</span><span class="p">(</span><span class="n">RAD_seq</span><span class="p">,</span> <span class="n">source</span> <span class="o">=</span> <span class="s2">"google"</span><span class="p">)</span>
+<span class="n">RAD_locs</span> <span class="o">&lt;-</span> <span class="n">data.frame</span><span class="p">(</span><span class="n">RAD_seq</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+</code></pre></div>
+<h3>Create the time lapse map</h3>
+
+<p>The <code>maps</code> code below (using functions <code>map</code>, <code>rect</code>, <code>abline</code> amd <code>mtext</code>) is modified from my former labmate&#39;s code in the <a href="https://cran.r-project.org/web/packages/warbleR/index.html">package warbleR</a>, which we co-developed for bioacoustic analyses (see the function <code>xcmaps</code>). Marcelo has a <a href="http://marceloarayasalas.weebly.com">great blog</a> for anyone interested in bioacoustic analyses in R.  </p>
+
+<p>An important disclaimer: as I&#39;m interested in making a map for visualization purposes, I&#39;m not being super careful about projections and coordinate systems of the different data used here (see argument <code>proj4string</code> in <code>SpatialPoints</code>). If you use similar data for quantitative purposes, you absolutely need to be sure that your coordinate systems/projections are all the same. Nearly all the points I&#39;m mapping generally fall where expected. However, if the majority of GBIF sightings were being plotted in the Atlantic Ocean, that would be an indication for major changes to the coordinate system/projection. </p>
+
+<p>Moving on, the basic idea below is to:
+*write a loop to create a map per desired time period
+*wrap this expression in a function from package <code>animation</code> to create a gif </p>
+
+<p>I&#39;ve included some tricks below that you might find useful:
+*grouping GBIF sightings by native or introduced status, using <code>sp::over</code> to determine which South American sightings fall <em>outside</em> the native distributions 
+*colors conditional on native or invasive status
+*map border color conditional on the year monk parakeets invade the Northern hemisphere
+*<code>alpha</code> argument inside color palettes controls transparency, to better visualize build-up of plotted points
+*removal of intermediate maps once incorporated into the final gif
+*pbsapply adds a progress bar</p>
+<div class="highlight"><pre><code class="language-" data-lang="">## Error in eval(expr, envir, enclos): could not find function "saveGIF"
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## null device 
+##           1
+</code></pre></div>
+<p><img src="/images/mymon-time-lapse.gif" width="200" height ="200" /></p>
+
+	
+</div>
+
+
+    </div>
+    <script src="/javascripts/scale.fix.js"></script>
+  </body>
+</html>

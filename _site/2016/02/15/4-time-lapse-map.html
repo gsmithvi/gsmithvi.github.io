@@ -1,0 +1,547 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Grace Smith Vidaurre</title>
+
+    <link rel="stylesheet" href="/stylesheets/styles.css">
+    <link rel="stylesheet" href="/stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="/stylesheets/bootstrap-social.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.5-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <script src="/static/bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+
+<div class="blogpost">
+	<a href="http://gsmithvi.github.io">&#8592; Home</a>
+	<h1>Time lapse maps in R</h1>
+
+<p>Interactive graphics are an excellent way to show off your research without being too wordy. A former labmate, <a href="http://marceloarayasalas.weebly.com">Marcelo Araya Salas</a>, had been playing around with making movies or gifs in R. I thought it would be neat to create a time lapse map of the species I study (yes, monk parakeets again). I wasn&#39;t able to finish this map in time for a poster I presented in January, but I&#39;m happy to be posting the code here and now.  </p>
+
+<p>In this post, I&#39;m making use of the <code>maps</code> package. I chose <code>maps</code> because I wanted to demonstrate the global extent of monk parakeet invasions, relative to their native range. I prefer the aestethics of <code>ggmap</code> whenever possible, but <code>ggmap</code> doesn&#39;t support maps on a global scale. It should be easy to replace the <code>maps</code> code with some from any preferred mapping package. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">library</span><span class="p">(</span><span class="n">maps</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">ggmap</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">mapdata</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">maptools</span><span class="p">)</span> 
+<span class="n">library</span><span class="p">(</span><span class="n">scales</span><span class="p">)</span>  
+<span class="n">library</span><span class="p">(</span><span class="n">RColorBrewer</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">rgeos</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">rgdal</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">animation</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">pbapply</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">shapefiles</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">ggplot2</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">animation</span><span class="p">)</span>
+</code></pre></div>
+<p>Let&#39;s start by intializing all the information that will be overlaid on the map, including:</p>
+
+<ul>
+<li><p>Global Biodiversity Information Facility (GBIF) observations, grouped by time period</p></li>
+<li><p>Native distribution polygon</p></li>
+<li><p>Genomic research sampling sites</p></li>
+</ul>
+
+<h3>Prepare GBIF data</h3>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp</span> <span class="o">&lt;-</span> <span class="n">read.csv</span><span class="p">(</span><span class="n">paste</span><span class="p">(</span><span class="s2">"Myiopsitta_monachus_filtered_GBIF_"</span><span class="p">,</span> <span class="n">Sys.Date</span><span class="p">(),</span> <span class="s2">".csv"</span><span class="p">,</span> <span class="n">sep</span> <span class="o">=</span> <span class="s2">""</span><span class="p">),</span> <span class="n">header</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span>
+</code></pre></div>
+<p>Which years are represented in the GBIF data?</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">table</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## 
+## 1909 1920 1923 1924 1925 1926 1928 1936 1937 1940 1945 1957 1960 1961 1965 
+##    2    1    2    4   18    6    6    3    7    1    2    9   27   28    1 
+## 1969 1970 1971 1972 1973 1974 1975 1976 1977 1978 1979 1980 1981 1982 1983 
+##    1    2    2    5    4    7    4    4    4    6   10    9  159  133    9 
+## 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993 1994 1995 1996 1997 1998 
+##   12   15   26   36   42   68   76   40   73  115  121   98   68  102  242 
+## 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 
+##  246  327  321  543  709  697  761 1128 1597 1726 2533 3576 4081 5483 6809 
+## 2014 2015 
+##   82   78
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">length</span><span class="p">(</span><span class="n">table</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">))</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## [1] 62
+</code></pre></div>
+<p>I&#39;m going to move forwards by keeping the original years as time periods, rather than grouping observations into a smaller subset of time periods. This means the final gif will be composed of 62 frames, which sounds like a lot of files to create. Fortunately, we can customize the code to delete these intermediate frames once they&#39;ve been incorporated into the final gif. Here, the GBIF data have to be ordered by year. As you&#39;ll see below, the variable <code>time.periods</code> will be used as the indexing variable to create each map within a loop. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">time.periods</span> <span class="o">&lt;-</span> <span class="n">unique</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">[</span><span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">)])[</span><span class="n">order</span><span class="p">(</span><span class="n">unique</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">[</span><span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span><span class="p">)]),</span> <span class="n">decreasing</span> <span class="o">=</span> <span class="n">FALSE</span><span class="p">)]</span> 
+<span class="n">time.periods</span>
+</code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">##  [1] 1909 1920 1923 1924 1925 1926 1928 1936 1937 1940 1945 1957 1960 1961
+## [15] 1965 1969 1970 1971 1972 1973 1974 1975 1976 1977 1978 1979 1980 1981
+## [29] 1982 1983 1984 1985 1986 1987 1988 1989 1990 1991 1992 1993 1994 1995
+## [43] 1996 1997 1998 1999 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009
+## [57] 2010 2011 2012 2013 2014 2015
+</code></pre></div>
+<p>I&#39;m also creating latitude and longitude vectors that will be used to intialize the map prior to overlaying data. This is a good trick when using the <code>maps</code> package for mapping, which requires a map intialization step prior to the actual mapping. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">map.lat</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="o">$</span><span class="n">decimalLatitude</span>
+<span class="n">map.lon</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="o">$</span><span class="n">decimalLongitude</span>
+</code></pre></div>
+<h3>Prepare <em>Myiopsitta monachus</em> species distribution polygon</h3>
+
+<p>This code creates an object of class <code>SpatialPolygonsDataFrame</code>, which is easy to overlay on most maps. The tricky part here is that this species distribution contains polygons in the introduced range, which I want to exlcude. In a previous post (<code>ggmapping</code>), these introduced range polygons were automatically excluded by simply creating a map in the Southern hemisphere. Since I&#39;m creating a global map, I have to manually filter only the Souther hemisphere polygon.</p>
+
+<p>I got lucky here - it was easy to exclude the introduced range polygons based on size. The code below will be unfamiliar if you&#39;ve never heard of S4 objects. If so, check out <a href="http://adv-r.had.co.nz/S4.html">Hadley Wickham&#39;s useful explanation</a>. </p>
+
+<p>Most objects you manipulate in R are S3 objects. S4 objects are more rigid and have specific methods for indexing, etc. The structure of the following S4 polygon seems extremely complex (slots within lists and vice versa), and it can be a pain when figuring out how to index these things for the first time. For the <code>SpatialPolygonsDataFrame</code> object below, it helps if you think about it as nothing more than a data frame with 2 dimensions (rows and columns).</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mp.distr</span> <span class="o">&lt;-</span> <span class="n">readShapePoly</span><span class="p">(</span><span class="s2">"Myiopsitta_monachus_1608_NS.shp"</span><span class="p">)</span> 
+<span class="c1"># str(mp.distr)
+</span><span class="n">class</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">)</span>
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">str</span><span class="p">(</span><span class="n">mp.distr</span><span class="o">@</span><span class="n">data</span><span class="p">)</span> <span class="c1"># this data frame contains metadata, but no regional information
+</span></code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## 'data.frame':    3 obs. of  14 variables:
+##  $ SPCRECID : int  1608 1608 1608
+##  $ DATE_    : Factor w/ 1 level "23/11/2006": 1 1 1
+##  $ SCINAME  : Factor w/ 1 level "Myiopsitta monachus": 1 1 1
+##  $ SOURCE   : Factor w/ 3 levels "Cramp, 1997 ; Ridgley, 2003 ; del Hoyo 1997; Juniper &amp; Parr, 1998",..: 1 3 2
+##  $ PRESENCE : int  1 4 1
+##  $ ORIGIN   : int  3 3 1
+##  $ SEASONAL : int  1 1 1
+##  $ DATA_SENS: Factor w/ 0 levels: NA NA NA
+##  $ SENS_COMM: Factor w/ 0 levels: NA NA NA
+##  $ COMPILER : Factor w/ 0 levels: NA NA NA
+##  $ TAX_COM  : Factor w/ 0 levels: NA NA NA
+##  $ DIST_COM : Factor w/ 0 levels: NA NA NA
+##  $ REVIEWERS: Factor w/ 1 level "Ridgely, 2002": NA NA 1
+##  $ CITATION : Factor w/ 1 level "Ridgely et al. and BirdLife International (2012) Digital Distribution Maps of the Birds of the Western Hemisphere, version 5.0 "| __truncated__: 1 1 1
+##  - attr(*, "data_types")= chr  "N" "C" "C" "C" ...
+</code></pre></div><div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">str</span><span class="p">(</span><span class="n">mp.distr</span><span class="o">@</span><span class="n">polygons</span><span class="p">)</span> <span class="c1"># yup, it's complicated
+</span></code></pre></div><div class="highlight"><pre><code class="language-" data-lang="">## List of 3
+##  $ :Formal class 'Polygons' [package "sp"] with 5 slots
+##   .. ..@ Polygons :List of 26
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -61.7 16.2
+##   .. .. .. .. ..@ area   : num 0.0735
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:248, 1:2] -61.7 -61.7 -61.7 -61.7 -61.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -61.4 16.3
+##   .. .. .. .. ..@ area   : num 0.0507
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:213, 1:2] -61.5 -61.5 -61.5 -61.5 -61.4 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -66.5 18.2
+##   .. .. .. .. ..@ area   : num 0.75
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:1021, 1:2] -67.1 -67.1 -67.1 -67.1 -67.1 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -66.5 18.2
+##   .. .. .. .. ..@ area   : num 0.334
+##   .. .. .. .. ..@ hole   : logi TRUE
+##   .. .. .. .. ..@ ringDir: int -1
+##   .. .. .. .. ..@ coords : num [1:26, 1:2] -67 -67 -67 -66.9 -66.8 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.4 19.3
+##   .. .. .. .. ..@ area   : num 0.00177
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:32, 1:2] -81.4 -81.4 -81.4 -81.4 -81.4 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -80.9 25.2
+##   .. .. .. .. ..@ area   : num 1.56e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:6, 1:2] -80.9 -80.9 -80.9 -80.9 -80.9 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.6 25.9
+##   .. .. .. .. ..@ area   : num 4.8e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:5, 1:2] -81.6 -81.6 -81.6 -81.6 -81.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.6 25.9
+##   .. .. .. .. ..@ area   : num 5.53e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:6, 1:2] -81.6 -81.6 -81.6 -81.6 -81.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -82.2 26.9
+##   .. .. .. .. ..@ area   : num 1.79e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -82.2 -82.2 -82.2 -82.2 -82.2 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -82.6 27.9
+##   .. .. .. .. ..@ area   : num 5.41e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -82.6 -82.6 -82.6 -82.6 -82.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.3 27.1
+##   .. .. .. .. ..@ area   : num 6.08
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:1176, 1:2] -82.7 -82.1 -82 -81.9 -81.8 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -95.3 29.5
+##   .. .. .. .. ..@ area   : num 0.0608
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:398, 1:2] -95.3 -95.3 -95.3 -95.3 -95.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -97.7 29.7
+##   .. .. .. .. ..@ area   : num 0.208
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -97.7 -97.7 -97.7 -97.7 -97.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.6 30
+##   .. .. .. .. ..@ area   : num 0.246
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:27, 1:2] -81.3 -81.2 -81.3 -81.5 -81.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -90.2 30.2
+##   .. .. .. .. ..@ area   : num 0.142
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:396, 1:2] -90 -90 -90 -89.9 -89.9 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -97.7 31.3
+##   .. .. .. .. ..@ area   : num 0.0616
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -97.7 -97.7 -97.7 -97.7 -97.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -102.4 31.7
+##   .. .. .. .. ..@ area   : num 0.0616
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -102 -102 -102 -102 -102 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -105.8 31.7
+##   .. .. .. .. ..@ area   : num 0.124
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -106 -106 -106 -106 -106 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -97.5 32.5
+##   .. .. .. .. ..@ area   : num 0.0466
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -97.5 -97.5 -97.5 -97.5 -97.5 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -89.6 34.4
+##   .. .. .. .. ..@ area   : num 0.0716
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -89.6 -89.6 -89.6 -89.6 -89.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -76.2 36.8
+##   .. .. .. .. ..@ area   : num 0.124
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:255, 1:2] -76.2 -76.2 -76.2 -76.2 -76.2 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -75.2 38.7
+##   .. .. .. .. ..@ area   : num 0.0118
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:365, 1:2] -75.2 -75.2 -75.2 -75.2 -75.2 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -73.7 41
+##   .. .. .. .. ..@ area   : num 1.4e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:5, 1:2] -73.7 -73.7 -73.7 -73.7 -73.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -73.8 40.8
+##   .. .. .. .. ..@ area   : num 0.367
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:271, 1:2] -73.7 -73.7 -73.7 -73.7 -73.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -71.8 41.5
+##   .. .. .. .. ..@ area   : num 0.0389
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -71.8 -71.8 -71.8 -71.8 -71.8 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -87.9 41.9
+##   .. .. .. .. ..@ area   : num 0.226
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:33, 1:2] -87.9 -88 -88 -88.1 -88.1 ...
+##   .. ..@ plotOrder: int [1:26] 11 3 24 4 14 26 13 15 18 21 ...
+##   .. ..@ labpt    : num [1:2] -81.3 27.1
+##   .. ..@ ID       : chr "0"
+##   .. ..@ area     : num 8.75
+##  $ :Formal class 'Polygons' [package "sp"] with 5 slots
+##   .. ..@ Polygons :List of 1
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -76.3 25.1
+##   .. .. .. .. ..@ area   : num 0.0405
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:634, 1:2] -76.7 -76.7 -76.7 -76.7 -76.7 ...
+##   .. ..@ plotOrder: int 1
+##   .. ..@ labpt    : num [1:2] -76.3 25.1
+##   .. ..@ ID       : chr "1"
+##   .. ..@ area     : num 0.0405
+##  $ :Formal class 'Polygons' [package "sp"] with 5 slots
+##   .. ..@ Polygons :List of 14
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -63.6 -42.4
+##   .. .. .. .. ..@ area   : num 0.000254
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:13, 1:2] -63.6 -63.6 -63.6 -63.6 -63.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -64.1 -41
+##   .. .. .. .. ..@ area   : num 4.38e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -64.1 -64.1 -64.1 -64.1 -64.1 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -62.3 -39
+##   .. .. .. .. ..@ area   : num 0.000138
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:12, 1:2] -62.3 -62.3 -62.3 -62.3 -62.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -62.3 -39
+##   .. .. .. .. ..@ area   : num 8.35e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -62.3 -62.3 -62.3 -62.3 -62.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -62.3 -39
+##   .. .. .. .. ..@ area   : num 9.08e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:6, 1:2] -62.3 -62.3 -62.3 -62.3 -62.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -62.3 -38.8
+##   .. .. .. .. ..@ area   : num 4.72e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -62.3 -62.3 -62.3 -62.3 -62.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -58.5 -33.9
+##   .. .. .. .. ..@ area   : num 7.21e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:8, 1:2] -58.5 -58.5 -58.5 -58.5 -58.5 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -58.3 -33.1
+##   .. .. .. .. ..@ area   : num 0.000116
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:9, 1:2] -58.2 -58.2 -58.3 -58.3 -58.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -58 -32.9
+##   .. .. .. .. ..@ area   : num 7.09e-06
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:5, 1:2] -58 -58 -58 -58 -58 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -50.7 -30.4
+##   .. .. .. .. ..@ area   : num 3.62e-07
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:4, 1:2] -50.7 -50.7 -50.7 -50.7 -30.4 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -68.2 -29.7
+##   .. .. .. .. ..@ area   : num 0.000463
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:4, 1:2] -68.2 -68.2 -68.2 -68.2 -29.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -68.1 -29.5
+##   .. .. .. .. ..@ area   : num 0.000465
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:4, 1:2] -68.2 -68.1 -68.1 -68.2 -29.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -65.7 -18.1
+##   .. .. .. .. ..@ area   : num 6.29
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:51, 1:2] -65.2 -65.4 -65.6 -65.8 -66 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -60.8 -29.9
+##   .. .. .. .. ..@ area   : num 258
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:4845, 1:2] -56.2 -56.3 -56.5 -56.6 -56.6 ...
+##   .. ..@ plotOrder: int [1:14] 14 13 12 11 1 3 8 5 4 7 ...
+##   .. ..@ labpt    : num [1:2] -60.8 -29.9
+##   .. ..@ ID       : chr "2"
+##   .. ..@ area     : num 264
+</code></pre></div>
+<p>I resorted to extracting the largest polygon in the <code>SpatialPolygonsDataFrame</code>, because regional information isn&#39;t available per polygon. Again, it was just lucky that I happened to be interested in the largest polygon. You may run into situations that require more customization, and if so, hopefully those polygons will contain more information that can be used for indexing. Note the use of <code>@</code> indexing to extract specific slots of the S4 object. </p>
+
+<p>The largest polygon happens to the the third in the list, as we learn from using <code>sapply</code>. The third polygon can be pulled out by simple square bracket indexing.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">sapply</span><span class="p">(</span><span class="n">slot</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">,</span> <span class="s2">"polygons"</span><span class="p">),</span> <span class="k">function</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="n">slot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="s2">"area"</span><span class="p">))</span>
+
+<span class="n">class</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">[</span><span class="m">3</span><span class="p">,</span> <span class="p">])</span> <span class="c1"># correct class for plotting
+</span>
+<span class="c1"># filtering South American polygon
+</span><span class="n">mp.distr2</span> <span class="o">&lt;-</span> <span class="n">fortify</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">[</span><span class="m">3</span><span class="p">,</span> <span class="p">])</span>
+<span class="n">mp.distr2</span> <span class="o">&lt;-</span> <span class="n">mp.distr2</span><span class="p">[</span><span class="n">mp.distr2</span><span class="o">$</span><span class="n">lat</span> <span class="o">&lt;=</span> <span class="m">0</span><span class="p">,</span> <span class="p">]</span> <span class="c1"># removing any points in the Eastern hemisphere
+</span></code></pre></div>
+<h3>Download sampling site coordinates</h3>
+
+<p>Here&#39;s a cool function from <code>ggmap</code>, called <code>geocode</code>. This function allows you to search for locations by name in Google databases, and returns geographic coordinates that you can use for mapping. I&#39;ve included sites where invasive or native samples were collected and used in restriction enzyme associated DNA sequencing (RAD-seq). </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">RAD_seq</span> <span class="o">&lt;-</span> <span class="n">c</span><span class="p">(</span><span class="s2">"Algarrobo, Argentina"</span><span class="p">,</span> <span class="s2">"Entre Rios, Argentina"</span><span class="p">,</span> <span class="s2">"Buenos Aires, Argentina"</span><span class="p">,</span> <span class="s2">"Parque Luro, Argentina"</span><span class="p">,</span><span class="s2">"Madrid, Spain"</span><span class="p">,</span> <span class="s2">"Zaragoza, Spain"</span><span class="p">,</span> <span class="s2">"Barcelona, Spain"</span><span class="p">,</span> <span class="s2">"Sevilla, Spain"</span><span class="p">,</span> <span class="s2">"Mallorca, Spain"</span><span class="p">,</span> <span class="s2">"Gran Canaria, Canary Islands"</span><span class="p">,</span> <span class="s2">"Connecticut"</span><span class="p">,</span> <span class="s2">"Illinois"</span><span class="p">,</span> <span class="s2">"Washington State"</span><span class="p">,</span> <span class="s2">"Florida"</span><span class="p">)</span>
+
+<span class="n">coords</span> <span class="o">&lt;-</span> <span class="n">geocode</span><span class="p">(</span><span class="n">RAD_seq</span><span class="p">,</span> <span class="n">source</span> <span class="o">=</span> <span class="s2">"google"</span><span class="p">)</span>
+
+<span class="n">RAD_locs</span> <span class="o">&lt;-</span> <span class="n">data.frame</span><span class="p">(</span><span class="n">RAD_seq</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+</code></pre></div>
+<h3>Create the time lapse map</h3>
+
+<p>The <code>maps</code> code below (using functions <code>map</code>, <code>rect</code>, <code>abline</code> amd <code>mtext</code>) is modified from my former labmate&#39;s code in <a href="https://cran.r-project.org/web/packages/warbleR/index.html">warbleR</a>, a package we co-developed for bioacoustic analyses (see the function <code>xcmaps</code>). Marcelo has a <a href="http://marceloarayasalas.weebly.com">great blog</a> for anyone interested in bioacoustic analyses in R.  </p>
+
+<p>An important disclaimer: as I&#39;m interested in making a map for visualization purposes, I&#39;m not being super careful about projections and coordinate systems of the different data used here (see argument <code>proj4string</code> in <code>SpatialPoints</code>). If you use similar data for quantitative purposes, you absolutely need to be sure that your coordinate systems/projections are all the same. Nearly all the points I&#39;m mapping generally fall where expected. However, if the majority of GBIF sightings were being plotted in the Atlantic Ocean, that would be an indication for major changes to the coordinate system/projection. </p>
+
+<p>Moving on, the basic idea below is to:</p>
+
+<ul>
+<li><p>write a loop to create a map per desired time period</p></li>
+<li><p>wrap this expression in a function from package <code>animation</code> to create a gif </p></li>
+</ul>
+
+<p>I&#39;ve included some tricks below that you might find useful:</p>
+
+<ul>
+<li><p>grouping GBIF sightings by native or introduced status, using <code>sp::over</code> to determine which South American sightings fall <em>outside</em> the native distributions</p></li>
+<li><p>colors conditional on native or invasive status</p></li>
+<li><p>map border color conditional on the year monk parakeets invade the Northern hemisphere</p></li>
+<li><p><code>alpha</code> argument inside color palettes controls transparency, to better visualize build-up of plotted points</p></li>
+<li><p>removal of intermediate maps once incorporated into the final gif</p></li>
+<li><p>pbsapply adds a progress bar</p></li>
+</ul>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">ext</span> <span class="o">&lt;-</span> <span class="m">5</span> <span class="c1"># extra space around map limits specified below
+</span>
+<span class="n">saveGIF</span><span class="p">(</span><span class="n">expr</span> <span class="o">=</span> 
+
+<span class="n">pbsapply</span><span class="p">(</span><span class="m">1</span><span class="o">:</span><span class="n">length</span><span class="p">(</span><span class="n">time.periods</span><span class="p">),</span> <span class="k">function</span><span class="p">(</span><span class="n">x</span><span class="p">){</span>
+
+<span class="c1"># subset datset such that data by year builds up as gif progresses
+</span><span class="n">tmp</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">year</span> <span class="o">&lt;=</span> <span class="n">time.periods</span><span class="p">[</span><span class="n">x</span><span class="p">]),</span> <span class="p">]</span>
+<span class="n">lat</span> <span class="o">&lt;-</span> <span class="n">tmp</span><span class="o">$</span><span class="n">decimalLatitude</span>
+<span class="n">lon</span> <span class="o">&lt;-</span> <span class="n">tmp</span><span class="o">$</span><span class="n">decimalLongitude</span>
+
+<span class="c1"># divide lat and lon by invasive / South American status
+</span><span class="n">lat.inv</span> <span class="o">&lt;-</span> <span class="n">lat</span><span class="p">[</span><span class="n">lat</span> <span class="o">&gt;=</span> <span class="m">0</span><span class="p">]</span>
+<span class="n">lon.inv</span> <span class="o">&lt;-</span> <span class="n">lon</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="n">lat</span> <span class="o">&gt;=</span> <span class="m">0</span><span class="p">)]</span>
+
+<span class="n">lat.SA</span> <span class="o">&lt;-</span> <span class="n">lat</span><span class="p">[</span><span class="n">lat</span> <span class="o">&lt;=</span> <span class="m">0</span><span class="p">]</span>
+<span class="n">lon.SA</span> <span class="o">&lt;-</span> <span class="n">lon</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="n">lat</span> <span class="o">&lt;=</span> <span class="m">0</span><span class="p">)]</span>
+
+<span class="c1"># South American sightings outside the native distribution should be colored as invasive
+# need SpatialPoints object, rather than polygon
+</span><span class="n">mat</span> <span class="o">&lt;-</span> <span class="n">as.matrix</span><span class="p">(</span><span class="n">cbind</span><span class="p">(</span><span class="n">lon.SA</span><span class="p">,</span> <span class="n">lat.SA</span><span class="p">))</span>
+<span class="n">p</span> <span class="o">&lt;-</span> <span class="n">SpatialPoints</span><span class="p">(</span><span class="n">mat</span><span class="p">,</span> <span class="n">proj4string</span> <span class="o">=</span> <span class="n">CRS</span><span class="p">(</span><span class="n">as.character</span><span class="p">(</span><span class="n">NA</span><span class="p">)))</span>
+
+<span class="n">nat.status</span> <span class="o">&lt;-</span> <span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">over</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">as</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">[</span><span class="m">3</span><span class="p">,</span> <span class="p">],</span> <span class="s2">"SpatialPolygons"</span><span class="p">)))</span>
+
+<span class="n">lon.SA.in</span> <span class="o">&lt;-</span> <span class="n">lon.SA</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="n">nat.status</span> <span class="o">==</span> <span class="n">TRUE</span><span class="p">)]</span>
+<span class="n">lat.SA.in</span> <span class="o">&lt;-</span> <span class="n">lat.SA</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="n">nat.status</span> <span class="o">==</span> <span class="n">TRUE</span><span class="p">)]</span>
+<span class="n">lon.SA.out</span> <span class="o">&lt;-</span> <span class="n">lon.SA</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="n">nat.status</span> <span class="o">==</span> <span class="n">FALSE</span><span class="p">)]</span>
+<span class="n">lat.SA.out</span> <span class="o">&lt;-</span> <span class="n">lat.SA</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="n">nat.status</span> <span class="o">==</span> <span class="n">FALSE</span><span class="p">)]</span>  
+
+<span class="c1"># the package maps requires that you create an empty map first 
+</span><span class="n">map</span><span class="p">(</span><span class="s2">"world"</span><span class="p">,</span> <span class="n">xlim</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">min</span><span class="p">(</span><span class="n">map.lon</span><span class="p">)</span> <span class="o">-</span> <span class="n">ext</span><span class="p">,</span> <span class="n">max</span><span class="p">(</span><span class="n">map.lon</span><span class="p">)</span> <span class="o">+</span> <span class="n">ext</span><span class="p">),</span>
+    <span class="n">ylim</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">min</span><span class="p">(</span><span class="n">map.lat</span><span class="p">)</span> <span class="o">-</span> <span class="n">ext</span><span class="p">,</span> <span class="n">max</span><span class="p">(</span><span class="n">map.lat</span><span class="p">)</span> <span class="o">+</span> <span class="n">ext</span><span class="p">),</span> <span class="n">interior</span> <span class="o">=</span> <span class="n">FALSE</span><span class="p">,</span> <span class="n">fill</span> <span class="o">=</span> <span class="n">FALSE</span><span class="p">)</span>
+
+<span class="c1"># par("usr") specifies plot boundaries using the limits of the data itself
+# here we create a gridded rectangle as the background for the map
+</span><span class="n">rect</span><span class="p">(</span><span class="n">par</span><span class="p">(</span><span class="s2">"usr"</span><span class="p">)[</span><span class="m">1</span><span class="p">],</span> <span class="n">par</span><span class="p">(</span><span class="s2">"usr"</span><span class="p">)[</span><span class="m">3</span><span class="p">],</span> <span class="n">par</span><span class="p">(</span><span class="s2">"usr"</span><span class="p">)[</span><span class="m">2</span><span class="p">],</span> 
+     <span class="n">par</span><span class="p">(</span><span class="s2">"usr"</span><span class="p">)[</span><span class="m">4</span><span class="p">],</span> <span class="n">col</span> <span class="o">=</span> <span class="n">cm.colors</span><span class="p">(</span><span class="m">20</span><span class="p">)[</span><span class="m">7</span><span class="p">])</span>
+<span class="n">abline</span><span class="p">(</span><span class="n">h</span> <span class="o">=</span> <span class="n">seq</span><span class="p">(</span><span class="m">-90</span><span class="p">,</span> <span class="m">90</span><span class="p">,</span> <span class="m">5</span><span class="p">),</span> <span class="n">col</span> <span class="o">=</span> <span class="s2">"white"</span><span class="p">,</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">0.9</span><span class="p">)</span>
+<span class="n">abline</span><span class="p">(</span><span class="n">h</span> <span class="o">=</span> <span class="n">seq</span><span class="p">(</span><span class="m">-90</span><span class="p">,</span> <span class="m">90</span><span class="p">,</span> <span class="m">5</span><span class="p">),</span> <span class="n">col</span> <span class="o">=</span> <span class="s2">"white"</span><span class="p">,</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">1.1</span><span class="p">)</span>
+<span class="n">abline</span><span class="p">(</span><span class="n">v</span> <span class="o">=</span> <span class="n">seq</span><span class="p">(</span><span class="m">-180</span><span class="p">,</span> <span class="m">180</span><span class="p">,</span> <span class="m">5</span><span class="p">),</span> <span class="n">col</span> <span class="o">=</span> <span class="s2">"white"</span><span class="p">,</span> 
+       <span class="n">lwd</span> <span class="o">=</span> <span class="m">0.9</span><span class="p">)</span>
+<span class="n">abline</span><span class="p">(</span><span class="n">v</span> <span class="o">=</span> <span class="n">seq</span><span class="p">(</span><span class="m">-180</span><span class="p">,</span> <span class="m">180</span><span class="p">,</span> <span class="m">5</span><span class="p">),</span> <span class="n">col</span> <span class="o">=</span> <span class="s2">"white"</span><span class="p">,</span> 
+       <span class="n">lwd</span> <span class="o">=</span> <span class="m">1.1</span><span class="p">)</span>
+
+<span class="n">map</span><span class="p">(</span><span class="s2">"world"</span><span class="p">,</span> <span class="n">xlim</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">min</span><span class="p">(</span><span class="n">map.lon</span><span class="p">)</span> <span class="o">-</span> <span class="n">ext</span><span class="p">,</span> <span class="n">max</span><span class="p">(</span><span class="n">map.lon</span><span class="p">)</span> <span class="o">+</span> <span class="n">ext</span><span class="p">),</span> <span class="n">add</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span>
+    <span class="n">ylim</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">min</span><span class="p">(</span><span class="n">map.lat</span><span class="p">)</span> <span class="o">-</span> <span class="n">ext</span><span class="p">,</span> <span class="n">max</span><span class="p">(</span><span class="n">map.lat</span><span class="p">)</span> <span class="o">+</span> <span class="n">ext</span><span class="p">),</span> <span class="n">fill</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span>
+    <span class="n">col</span> <span class="o">=</span> <span class="n">terrain.colors</span><span class="p">(</span><span class="m">12</span><span class="p">)[</span><span class="m">8</span><span class="p">])</span> 
+
+<span class="n">mtext</span><span class="p">(</span><span class="s2">"Longitude (DD)"</span><span class="p">,</span> <span class="n">side</span> <span class="o">=</span> <span class="m">1</span><span class="p">,</span> <span class="n">line</span> <span class="o">=</span> <span class="m">0.5</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">1.5</span><span class="p">)</span>
+<span class="n">mtext</span><span class="p">(</span><span class="s2">"Latitude (DD)"</span><span class="p">,</span> <span class="n">side</span> <span class="o">=</span> <span class="m">2</span><span class="p">,</span> <span class="n">line</span> <span class="o">=</span> <span class="m">0.5</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">1.5</span><span class="p">)</span>
+<span class="n">mtext</span><span class="p">(</span><span class="n">paste</span><span class="p">(</span><span class="n">c</span><span class="p">(</span><span class="s2">"Myiopsitta monachus"</span><span class="p">,</span> <span class="s2">"\n"</span><span class="p">,</span> <span class="n">min</span><span class="p">(</span><span class="n">time.periods</span><span class="p">),</span> <span class="s2">"-"</span><span class="p">,</span> <span class="n">time.periods</span><span class="p">[</span><span class="n">x</span><span class="p">]),</span> <span class="n">collapse</span> <span class="o">=</span> <span class="s2">""</span><span class="p">),</span> <span class="n">side</span> <span class="o">=</span> <span class="m">3</span><span class="p">,</span> <span class="n">line</span> <span class="o">=</span> <span class="m">0.5</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">2.5</span><span class="p">)</span>
+
+<span class="c1"># plot species distribution
+</span><span class="n">plot</span><span class="p">(</span><span class="n">mp.distr</span><span class="p">[</span><span class="m">3</span><span class="p">,</span> <span class="p">],</span> <span class="n">add</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span> <span class="n">xlim</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">min</span><span class="p">(</span><span class="n">lon.SA</span><span class="p">)</span> <span class="o">-</span> <span class="n">ext</span><span class="p">,</span> <span class="n">max</span><span class="p">(</span><span class="n">lon.SA</span><span class="p">)</span> <span class="o">+</span> <span class="n">ext</span><span class="p">),</span> 
+     <span class="n">ylim</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">min</span><span class="p">(</span><span class="n">lat.SA</span><span class="p">)</span> <span class="o">-</span> <span class="n">ext</span><span class="p">,</span> <span class="n">max</span><span class="p">(</span><span class="n">lat.SA</span><span class="p">)</span> <span class="o">+</span> <span class="n">ext</span><span class="p">),</span> 
+     <span class="n">col</span> <span class="o">=</span> <span class="n">terrain.colors</span><span class="p">(</span><span class="m">10</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.5</span><span class="p">)[</span><span class="m">4</span><span class="p">],</span> <span class="n">border</span> <span class="o">=</span> <span class="n">terrain.colors</span><span class="p">(</span><span class="m">10</span><span class="p">)[</span><span class="m">2</span><span class="p">],</span>
+     <span class="n">lwd</span> <span class="o">=</span> <span class="m">2</span><span class="p">)</span>
+
+<span class="c1"># color points by status, if present for time period
+</span><span class="k">if</span><span class="p">(</span><span class="n">length</span><span class="p">(</span><span class="n">lon.inv</span><span class="p">)</span> <span class="o">!=</span> <span class="m">0</span> <span class="o">&amp;</span> <span class="n">length</span><span class="p">(</span><span class="n">lat.inv</span><span class="p">)</span> <span class="o">!=</span> <span class="m">0</span><span class="p">){</span>
+<span class="n">points</span><span class="p">(</span><span class="n">lon.inv</span><span class="p">,</span> <span class="n">lat.inv</span><span class="p">,</span> <span class="n">pch</span> <span class="o">=</span> <span class="m">21</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">1.5</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="s2">"black"</span><span class="p">,</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">0.25</span><span class="p">,</span>
+       <span class="n">bg</span> <span class="o">=</span> <span class="n">heat.colors</span><span class="p">(</span><span class="m">10</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.8</span><span class="p">)[</span><span class="m">3</span><span class="p">])</span>
+<span class="p">}</span>
+
+<span class="k">if</span><span class="p">(</span><span class="n">length</span><span class="p">(</span><span class="n">lon.SA.out</span><span class="p">)</span> <span class="o">!=</span> <span class="m">0</span> <span class="o">&amp;</span> <span class="n">length</span><span class="p">(</span><span class="n">lat.SA.out</span><span class="p">)</span> <span class="o">!=</span> <span class="m">0</span><span class="p">){</span>
+<span class="n">points</span><span class="p">(</span><span class="n">lon.SA.out</span><span class="p">,</span> <span class="n">lat.SA.out</span><span class="p">,</span> <span class="n">pch</span> <span class="o">=</span> <span class="m">21</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">1.5</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="s2">"black"</span><span class="p">,</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">0.25</span><span class="p">,</span>
+       <span class="n">bg</span> <span class="o">=</span> <span class="n">heat.colors</span><span class="p">(</span><span class="m">10</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.8</span><span class="p">)[</span><span class="m">3</span><span class="p">])</span>
+<span class="p">}</span>
+
+<span class="k">if</span><span class="p">(</span><span class="n">length</span><span class="p">(</span><span class="n">lon.SA.in</span><span class="p">)</span> <span class="o">!=</span> <span class="m">0</span> <span class="o">&amp;</span> <span class="n">length</span><span class="p">(</span><span class="n">lat.SA.in</span><span class="p">)</span> <span class="o">!=</span> <span class="m">0</span><span class="p">){</span>
+<span class="n">points</span><span class="p">(</span><span class="n">lon.SA.in</span><span class="p">,</span> <span class="n">lat.SA.in</span><span class="p">,</span> <span class="n">pch</span> <span class="o">=</span> <span class="m">21</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">1.5</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="s2">"black"</span><span class="p">,</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">0.25</span><span class="p">,</span>
+       <span class="n">bg</span> <span class="o">=</span> <span class="n">topo.colors</span><span class="p">(</span><span class="m">10</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.8</span><span class="p">)[</span><span class="m">3</span><span class="p">])</span>
+<span class="p">}</span>
+
+<span class="c1"># add points for RAD sampling regions
+</span><span class="k">if</span><span class="p">(</span><span class="n">time.periods</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="o">==</span> <span class="m">2015</span><span class="p">){</span>
+<span class="n">points</span><span class="p">(</span><span class="n">RAD_locs</span><span class="o">$</span><span class="n">lon</span><span class="p">,</span> <span class="n">RAD_locs</span><span class="o">$</span><span class="n">lat</span><span class="p">,</span> <span class="n">pch</span> <span class="o">=</span> <span class="m">21</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">4</span><span class="p">,</span> 
+       <span class="n">col</span> <span class="o">=</span> <span class="n">heat.colors</span><span class="p">(</span><span class="m">10</span><span class="p">)[</span><span class="m">7</span><span class="p">],</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">2</span><span class="p">,</span>
+       <span class="c1"># bg = heat.colors(10, alpha = 0.5)[8])
+</span>       <span class="n">bg</span> <span class="o">=</span> <span class="n">alpha</span><span class="p">(</span><span class="s2">"goldenrod1"</span><span class="p">,</span> <span class="m">0.7</span><span class="p">))</span>
+<span class="p">}</span>
+
+<span class="c1"># color border by time period in which monks were introduced
+</span><span class="k">if</span><span class="p">(</span><span class="n">time.periods</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="m">1961</span><span class="p">){</span>
+  <span class="n">box</span><span class="p">(</span><span class="n">which</span> <span class="o">=</span> <span class="s2">"plot"</span><span class="p">,</span> <span class="n">lty</span> <span class="o">=</span> <span class="s2">"solid"</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="n">heat.colors</span><span class="p">(</span><span class="m">10</span><span class="p">)[</span><span class="m">3</span><span class="p">],</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">6</span><span class="p">)</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+  <span class="n">box</span><span class="p">(</span><span class="n">which</span> <span class="o">=</span> <span class="s2">"plot"</span><span class="p">,</span> <span class="n">lty</span> <span class="o">=</span> <span class="s2">"solid"</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="n">topo.colors</span><span class="p">(</span><span class="m">10</span><span class="p">)[</span><span class="m">3</span><span class="p">],</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">6</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="c1"># add legend
+</span><span class="k">if</span><span class="p">(</span><span class="n">time.periods</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="m">1961</span><span class="p">){</span>
+  <span class="n">box.col</span> <span class="o">&lt;-</span> <span class="n">heat.colors</span><span class="p">(</span><span class="m">10</span><span class="p">)[</span><span class="m">3</span><span class="p">]</span>
+<span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+  <span class="n">box.col</span> <span class="o">&lt;-</span> <span class="n">topo.colors</span><span class="p">(</span><span class="m">10</span><span class="p">)[</span><span class="m">3</span><span class="p">]</span>
+<span class="p">}</span>
+
+<span class="n">ind</span> <span class="o">&lt;-</span> <span class="n">mp</span><span class="o">$</span><span class="n">year</span> <span class="o">&lt;=</span> <span class="n">time.periods</span><span class="p">[</span><span class="m">2</span><span class="p">]</span>
+
+<span class="n">legend</span><span class="p">(</span><span class="n">x</span> <span class="o">=</span> <span class="n">max</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">decimalLongitude</span><span class="p">[</span><span class="n">ind</span><span class="p">],</span> <span class="n">na.rm</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span> <span class="o">+</span> <span class="m">40</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">min</span><span class="p">(</span><span class="n">mp</span><span class="o">$</span><span class="n">decimalLatitude</span><span class="p">[</span><span class="n">ind</span><span class="p">],</span> <span class="n">na.rm</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span> <span class="o">+</span> <span class="n">ext</span><span class="o">/</span><span class="m">10</span><span class="p">,</span> 
+       <span class="n">legend</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="s2">"Introduced sighting"</span><span class="p">,</span> <span class="s2">"Native sighting"</span><span class="p">,</span> <span class="s2">"Native distribution"</span><span class="p">,</span> <span class="s2">"RAD-seq sampling site"</span><span class="p">),</span> 
+       <span class="n">pt.bg</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">heat.colors</span><span class="p">(</span><span class="m">10</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.8</span><span class="p">)[</span><span class="m">3</span><span class="p">],</span> <span class="n">topo.colors</span><span class="p">(</span><span class="m">10</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.8</span><span class="p">)[</span><span class="m">3</span><span class="p">],</span> 
+               <span class="n">terrain.colors</span><span class="p">(</span><span class="m">10</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.5</span><span class="p">)[</span><span class="m">4</span><span class="p">],</span> <span class="n">alpha</span><span class="p">(</span><span class="s2">"goldenrod1"</span><span class="p">,</span> <span class="m">0.7</span><span class="p">)),</span>
+       <span class="n">col</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="s2">"black"</span><span class="p">,</span> <span class="s2">"black"</span><span class="p">,</span> <span class="n">terrain.colors</span><span class="p">(</span><span class="m">10</span><span class="p">)[</span><span class="m">2</span><span class="p">],</span> <span class="n">heat.colors</span><span class="p">(</span><span class="m">10</span><span class="p">)[</span><span class="m">7</span><span class="p">]),</span>
+       <span class="n">pch</span> <span class="o">=</span> <span class="n">rep</span><span class="p">(</span><span class="m">21</span><span class="p">,</span> <span class="m">4</span><span class="p">),</span> <span class="n">bty</span> <span class="o">=</span> <span class="s2">"o"</span><span class="p">,</span> <span class="n">bg</span> <span class="o">=</span> <span class="n">topo.colors</span><span class="p">(</span><span class="m">12</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.2</span><span class="p">)[</span><span class="m">3</span><span class="p">],</span> <span class="n">box.lty</span> <span class="o">=</span> <span class="s2">"solid"</span><span class="p">,</span> <span class="n">box.lwd</span> <span class="o">=</span> <span class="m">3</span><span class="p">,</span> <span class="n">box.col</span> <span class="o">=</span> <span class="n">box.col</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">1</span><span class="p">,</span> <span class="n">ncol</span> <span class="o">=</span> <span class="m">2</span><span class="p">,</span> <span class="n">pt.cex</span> <span class="o">=</span> <span class="m">2</span><span class="p">)</span>
+
+<span class="c1"># add line for equator
+</span><span class="n">abline</span><span class="p">(</span><span class="n">h</span> <span class="o">=</span> <span class="m">0</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="s2">"grey"</span><span class="p">,</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">2.5</span><span class="p">,</span> <span class="n">lty</span> <span class="o">=</span> <span class="s2">"dashed"</span><span class="p">)</span>
+
+<span class="c1"># add scale to map
+# map.scale(ratio = FALSE, relwidth = 0.2, x = max(lon.inv) - ext*2, 
+#           y = min(lat.inv) + ext*2, cex = 0.5)
+</span>
+<span class="p">}),</span> <span class="n">movie.name</span> <span class="o">=</span> <span class="s2">"mymon-time-lapse.gif"</span><span class="p">,</span> <span class="n">img.name</span> <span class="o">=</span> <span class="s2">"Mymon_TL_images"</span><span class="p">,</span> <span class="n">clean</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">,</span> <span class="n">ani.height</span> <span class="o">=</span> <span class="m">1000</span><span class="p">,</span> <span class="n">ani.width</span> <span class="o">=</span> <span class="m">800</span><span class="p">,</span> <span class="n">interval</span> <span class="o">=</span> <span class="m">1</span><span class="p">)</span>
+
+<span class="n">dev.off</span><span class="p">()</span>
+</code></pre></div>
+<p><img src="/images/mymon-time-lapse.gif" width="1200" height ="1200" /></p>
+
+	
+</div>
+
+
+    </div>
+    <script src="/javascripts/scale.fix.js"></script>
+  </body>
+</html>

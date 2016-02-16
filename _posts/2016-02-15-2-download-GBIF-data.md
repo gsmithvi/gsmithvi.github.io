@@ -27,11 +27,21 @@ Since we'll be making maps in later posts, it makes sense to ensure that we're d
 occ_search(taxonKey = key, limit = 20, hasCoordinate = TRUE)
 ```
 
-Now you can use the taxon key to download GBIF data. The following chunk of code may look funny, since the function names don't correspond to their actual functions. The logic goes like this: 
-* once you start the download query, you can check its status
-* continue checking until the query status shows up as `SUCCEEDED` 
-* then download the zip file pulled by the query 
-* import the data to R
+Now you can use the taxon key to download GBIF data. The following chunk of code may look funny, since the function names don't correspond to their actual functions. The logic is more straightforward than the functions' names.
+
+
+- once you start the download query, you can check its status
+
+
+- continue checking until the query status shows up as `SUCCEEDED` 
+
+
+- then download the zip file pulled by the query 
+
+
+- import the data to R
+
+
 
 You don't have to worry about saving the zip file. Once you import data to R, you can save it at any point as a .csv file in your working directory.  
 

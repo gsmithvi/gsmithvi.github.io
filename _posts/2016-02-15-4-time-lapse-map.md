@@ -8,7 +8,7 @@ comments: true
 
 {% raw %}
 
-Interactive graphics are an excellent way to show off your research without being too wordy. A former labmate, [Marcelo Araya Salas](http://marceloarayasalas.weebly.com), had been playing around with making movies or gifs in R, and I thought it would be neat to use these tricks to create a time lapse map of the species I study (yes, monk parakeets again). I wasn't able to finish this map in time to incorporate it into a poster I presented in January, but I'm happy to be posting the code here and now.  
+Interactive graphics are an excellent way to show off your research without being too wordy. A former labmate, [Marcelo Araya Salas](http://marceloarayasalas.weebly.com), had been playing around with making movies or gifs in R. I thought it would be neat to create a time lapse map of the species I study (yes, monk parakeets again). I wasn't able to finish this map in time for a poster I presented in January, but I'm happy to be posting the code here and now.  
 
 In this post, I'm making use of the `maps` package. I chose `maps` because I wanted to demonstrate the global extent of monk parakeet invasions, relative to their native range. I prefer the aestethics of `ggmap` whenever possible, but `ggmap` doesn't support maps on a global scale. It should be easy to replace the `maps` code with some from any preferred mapping package. 
 
@@ -33,8 +33,11 @@ library(animation)
 ```
 
 Let's start by intializing all the information that will be overlaid on the map, including:
+
 * Global Biodiversity Information Facility (GBIF) observations, grouped by time period
+
 * Native distribution polygon
+
 * Genomic research sampling sites
 
 ### Prepare GBIF data
@@ -104,9 +107,6 @@ I got lucky here - it was easy to exclude the introduced range polygons based on
 
 Most objects you manipulate in R are S3 objects. S4 objects are more rigid and have specific methods for indexing, etc. The structure of the following S4 polygon seems extremely complex (slots within lists and vice versa), and it can be a pain when figuring out how to index these things for the first time. For the `SpatialPolygonsDataFrame` object below, it helps if you think about it as nothing more than a data frame with 2 dimensions (rows and columns).
 
-```
-## Error in getinfo.shape(filen): Error opening SHP file
-```
 
 
 ```r
@@ -121,7 +121,22 @@ str(mp.distr@data) # this data frame contains metadata, but no regional informat
 ```
 
 ```
-## Error in str(mp.distr@data): object 'mp.distr' not found
+## 'data.frame':	3 obs. of  14 variables:
+##  $ SPCRECID : int  1608 1608 1608
+##  $ DATE_    : Factor w/ 1 level "23/11/2006": 1 1 1
+##  $ SCINAME  : Factor w/ 1 level "Myiopsitta monachus": 1 1 1
+##  $ SOURCE   : Factor w/ 3 levels "Cramp, 1997 ; Ridgley, 2003 ; del Hoyo 1997; Juniper & Parr, 1998",..: 1 3 2
+##  $ PRESENCE : int  1 4 1
+##  $ ORIGIN   : int  3 3 1
+##  $ SEASONAL : int  1 1 1
+##  $ DATA_SENS: Factor w/ 0 levels: NA NA NA
+##  $ SENS_COMM: Factor w/ 0 levels: NA NA NA
+##  $ COMPILER : Factor w/ 0 levels: NA NA NA
+##  $ TAX_COM  : Factor w/ 0 levels: NA NA NA
+##  $ DIST_COM : Factor w/ 0 levels: NA NA NA
+##  $ REVIEWERS: Factor w/ 1 level "Ridgely, 2002": NA NA 1
+##  $ CITATION : Factor w/ 1 level "Ridgely et al. and BirdLife International (2012) Digital Distribution Maps of the Birds of the Western Hemisphere, version 5.0 "| __truncated__: 1 1 1
+##  - attr(*, "data_types")= chr  "N" "C" "C" "C" ...
 ```
 
 ```r
@@ -129,7 +144,271 @@ str(mp.distr@polygons) # yup, it's complicated
 ```
 
 ```
-## Error in str(mp.distr@polygons): object 'mp.distr' not found
+## List of 3
+##  $ :Formal class 'Polygons' [package "sp"] with 5 slots
+##   .. ..@ Polygons :List of 26
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -61.7 16.2
+##   .. .. .. .. ..@ area   : num 0.0735
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:248, 1:2] -61.7 -61.7 -61.7 -61.7 -61.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -61.4 16.3
+##   .. .. .. .. ..@ area   : num 0.0507
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:213, 1:2] -61.5 -61.5 -61.5 -61.5 -61.4 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -66.5 18.2
+##   .. .. .. .. ..@ area   : num 0.75
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:1021, 1:2] -67.1 -67.1 -67.1 -67.1 -67.1 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -66.5 18.2
+##   .. .. .. .. ..@ area   : num 0.334
+##   .. .. .. .. ..@ hole   : logi TRUE
+##   .. .. .. .. ..@ ringDir: int -1
+##   .. .. .. .. ..@ coords : num [1:26, 1:2] -67 -67 -67 -66.9 -66.8 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.4 19.3
+##   .. .. .. .. ..@ area   : num 0.00177
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:32, 1:2] -81.4 -81.4 -81.4 -81.4 -81.4 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -80.9 25.2
+##   .. .. .. .. ..@ area   : num 1.56e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:6, 1:2] -80.9 -80.9 -80.9 -80.9 -80.9 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.6 25.9
+##   .. .. .. .. ..@ area   : num 4.8e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:5, 1:2] -81.6 -81.6 -81.6 -81.6 -81.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.6 25.9
+##   .. .. .. .. ..@ area   : num 5.53e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:6, 1:2] -81.6 -81.6 -81.6 -81.6 -81.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -82.2 26.9
+##   .. .. .. .. ..@ area   : num 1.79e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -82.2 -82.2 -82.2 -82.2 -82.2 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -82.6 27.9
+##   .. .. .. .. ..@ area   : num 5.41e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -82.6 -82.6 -82.6 -82.6 -82.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.3 27.1
+##   .. .. .. .. ..@ area   : num 6.08
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:1176, 1:2] -82.7 -82.1 -82 -81.9 -81.8 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -95.3 29.5
+##   .. .. .. .. ..@ area   : num 0.0608
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:398, 1:2] -95.3 -95.3 -95.3 -95.3 -95.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -97.7 29.7
+##   .. .. .. .. ..@ area   : num 0.208
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -97.7 -97.7 -97.7 -97.7 -97.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -81.6 30
+##   .. .. .. .. ..@ area   : num 0.246
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:27, 1:2] -81.3 -81.2 -81.3 -81.5 -81.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -90.2 30.2
+##   .. .. .. .. ..@ area   : num 0.142
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:396, 1:2] -90 -90 -90 -89.9 -89.9 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -97.7 31.3
+##   .. .. .. .. ..@ area   : num 0.0616
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -97.7 -97.7 -97.7 -97.7 -97.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -102.4 31.7
+##   .. .. .. .. ..@ area   : num 0.0616
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -102 -102 -102 -102 -102 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -105.8 31.7
+##   .. .. .. .. ..@ area   : num 0.124
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -106 -106 -106 -106 -106 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -97.5 32.5
+##   .. .. .. .. ..@ area   : num 0.0466
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -97.5 -97.5 -97.5 -97.5 -97.5 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -89.6 34.4
+##   .. .. .. .. ..@ area   : num 0.0716
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -89.6 -89.6 -89.6 -89.6 -89.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -76.2 36.8
+##   .. .. .. .. ..@ area   : num 0.124
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:255, 1:2] -76.2 -76.2 -76.2 -76.2 -76.2 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -75.2 38.7
+##   .. .. .. .. ..@ area   : num 0.0118
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:365, 1:2] -75.2 -75.2 -75.2 -75.2 -75.2 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -73.7 41
+##   .. .. .. .. ..@ area   : num 1.4e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:5, 1:2] -73.7 -73.7 -73.7 -73.7 -73.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -73.8 40.8
+##   .. .. .. .. ..@ area   : num 0.367
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:271, 1:2] -73.7 -73.7 -73.7 -73.7 -73.7 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -71.8 41.5
+##   .. .. .. .. ..@ area   : num 0.0389
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:361, 1:2] -71.8 -71.8 -71.8 -71.8 -71.8 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -87.9 41.9
+##   .. .. .. .. ..@ area   : num 0.226
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:33, 1:2] -87.9 -88 -88 -88.1 -88.1 ...
+##   .. ..@ plotOrder: int [1:26] 11 3 24 4 14 26 13 15 18 21 ...
+##   .. ..@ labpt    : num [1:2] -81.3 27.1
+##   .. ..@ ID       : chr "0"
+##   .. ..@ area     : num 8.75
+##  $ :Formal class 'Polygons' [package "sp"] with 5 slots
+##   .. ..@ Polygons :List of 1
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -76.3 25.1
+##   .. .. .. .. ..@ area   : num 0.0405
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:634, 1:2] -76.7 -76.7 -76.7 -76.7 -76.7 ...
+##   .. ..@ plotOrder: int 1
+##   .. ..@ labpt    : num [1:2] -76.3 25.1
+##   .. ..@ ID       : chr "1"
+##   .. ..@ area     : num 0.0405
+##  $ :Formal class 'Polygons' [package "sp"] with 5 slots
+##   .. ..@ Polygons :List of 14
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -63.6 -42.4
+##   .. .. .. .. ..@ area   : num 0.000254
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:13, 1:2] -63.6 -63.6 -63.6 -63.6 -63.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -64.1 -41
+##   .. .. .. .. ..@ area   : num 4.38e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -64.1 -64.1 -64.1 -64.1 -64.1 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -62.3 -39
+##   .. .. .. .. ..@ area   : num 0.000138
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:12, 1:2] -62.3 -62.3 -62.3 -62.3 -62.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -62.3 -39
+##   .. .. .. .. ..@ area   : num 8.35e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -62.3 -62.3 -62.3 -62.3 -62.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -62.3 -39
+##   .. .. .. .. ..@ area   : num 9.08e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:6, 1:2] -62.3 -62.3 -62.3 -62.3 -62.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -62.3 -38.8
+##   .. .. .. .. ..@ area   : num 4.72e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:7, 1:2] -62.3 -62.3 -62.3 -62.3 -62.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -58.5 -33.9
+##   .. .. .. .. ..@ area   : num 7.21e-05
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:8, 1:2] -58.5 -58.5 -58.5 -58.5 -58.5 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -58.3 -33.1
+##   .. .. .. .. ..@ area   : num 0.000116
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:9, 1:2] -58.2 -58.2 -58.3 -58.3 -58.3 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -58 -32.9
+##   .. .. .. .. ..@ area   : num 7.09e-06
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:5, 1:2] -58 -58 -58 -58 -58 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -50.7 -30.4
+##   .. .. .. .. ..@ area   : num 3.62e-07
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:4, 1:2] -50.7 -50.7 -50.7 -50.7 -30.4 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -68.2 -29.7
+##   .. .. .. .. ..@ area   : num 0.000463
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:4, 1:2] -68.2 -68.2 -68.2 -68.2 -29.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -68.1 -29.5
+##   .. .. .. .. ..@ area   : num 0.000465
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:4, 1:2] -68.2 -68.1 -68.1 -68.2 -29.6 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -65.7 -18.1
+##   .. .. .. .. ..@ area   : num 6.29
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:51, 1:2] -65.2 -65.4 -65.6 -65.8 -66 ...
+##   .. .. ..$ :Formal class 'Polygon' [package "sp"] with 5 slots
+##   .. .. .. .. ..@ labpt  : num [1:2] -60.8 -29.9
+##   .. .. .. .. ..@ area   : num 258
+##   .. .. .. .. ..@ hole   : logi FALSE
+##   .. .. .. .. ..@ ringDir: int 1
+##   .. .. .. .. ..@ coords : num [1:4845, 1:2] -56.2 -56.3 -56.5 -56.6 -56.6 ...
+##   .. ..@ plotOrder: int [1:14] 14 13 12 11 1 3 8 5 4 7 ...
+##   .. ..@ labpt    : num [1:2] -60.8 -29.9
+##   .. ..@ ID       : chr "2"
+##   .. ..@ area     : num 264
 ```
 
 I resorted to extracting the largest polygon in the `SpatialPolygonsDataFrame`, because regional information isn't available per polygon. Again, it was just lucky that I happened to be interested in the largest polygon. You may run into situations that require more customization, and if so, hopefully those polygons will contain more information that can be used for indexing. Note the use of `@` indexing to extract specific slots of the S4 object. 
@@ -165,16 +444,24 @@ The `maps` code below (using functions `map`, `rect`, `abline` amd `mtext`) is m
 An important disclaimer: as I'm interested in making a map for visualization purposes, I'm not being super careful about projections and coordinate systems of the different data used here (see argument `proj4string` in `SpatialPoints`). If you use similar data for quantitative purposes, you absolutely need to be sure that your coordinate systems/projections are all the same. Nearly all the points I'm mapping generally fall where expected. However, if the majority of GBIF sightings were being plotted in the Atlantic Ocean, that would be an indication for major changes to the coordinate system/projection. 
 
 Moving on, the basic idea below is to:
-* write a loop to create a map per desired time period
-* wrap this expression in a function from package `animation` to create a gif 
+
+- write a loop to create a map per desired time period
+
+- wrap this expression in a function from package `animation` to create a gif 
 
 I've included some tricks below that you might find useful:
-* grouping GBIF sightings by native or introduced status, using `sp::over` to determine which South American sightings fall _outside_ the native distributions 
-* colors conditional on native or invasive status
-* map border color conditional on the year monk parakeets invade the Northern hemisphere
-* `alpha` argument inside color palettes controls transparency, to better visualize build-up of plotted points
-* removal of intermediate maps once incorporated into the final gif
-* pbsapply adds a progress bar
+
++ grouping GBIF sightings by native or introduced status, using `sp::over` to determine which South American sightings fall _outside_ the native distributions
+
++ colors conditional on native or invasive status
+
++ map border color conditional on the year monk parakeets invade the Northern hemisphere
+
++ `alpha` argument inside color palettes controls transparency, to better visualize build-up of plotted points
+
++ removal of intermediate maps once incorporated into the final gif
+
++ pbsapply adds a progress bar
 
 
 ```r
@@ -296,7 +583,7 @@ abline(h = 0, col = "grey", lwd = 2.5, lty = "dashed")
 dev.off()
 ```
 
-<img src="/images/mymon-time-lapse.gif" width="1200" height ="1000" />
+<img src="/images/mymon-time-lapse.gif" width="1200" height ="1200" />
 
 {% endraw %}
 

@@ -1,0 +1,292 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Grace Smith Vidaurre</title>
+
+    <link rel="stylesheet" href="/stylesheets/styles.css">
+    <link rel="stylesheet" href="/stylesheets/pygment_trac.css">
+    <link rel="stylesheet" href="/stylesheets/bootstrap-social.css">
+    <link rel="stylesheet" href="/static/bootstrap-3.3.5-dist/css/bootstrap.css">
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <script src="/static/bootstrap-3.3.5-dist/js/bootstrap.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+
+<div class="blogpost">
+	<a href="http://gsmithvi.github.io">&#8592; Home</a>
+	<h1>Making trellis maps in R with raster layers</h1>
+
+<p>We don&#39;t often think of parrots as successful invasive species. The monk parakeet, <em>Myiopsitta monachus</em>, is a widespread invader in the Northern hemisphere. Monk parakeets are native to temperate South America, and have been dispersed to other countries by means of the global pet trade. Monks survive winters in Chicago, Brooklyn and Washington State. Recently, SEO/BirdLife volunteers estimated around 20,000 monk parakeets in Spanish cities. </p>
+
+<p>I&#39;ve been working on maps of monk parakeet sightings using Global Biodiversity Information Facility (GBIF) data. Introduced populations are nearly always found in cities or suburbs. I&#39;ve included some code below to explore how monk parakeets are distributed across different land class categories in Uruguay, a country thought to be the origin for introduced populations. Keep in mind that GBIF sightings will be biased by human reporting.</p>
+
+<p>The map I will make here is heavily based off of Oscar Perpiñán Lamigueiro&#39;s code to create trellis object maps using raster layers: see <a href="https://procomun.wordpress.com/2012/02/20/maps_with_r_2/">Oscar&#39;s blog</a> for his original code.</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># make sure to install packages
+</span><span class="n">library</span><span class="p">(</span><span class="n">maps</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">mapdata</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">ggmap</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">ggplot2</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">maptools</span><span class="p">)</span>  <span class="c1">#for shapefiles
+</span><span class="n">library</span><span class="p">(</span><span class="n">scales</span><span class="p">)</span>  <span class="c1">#for transparency
+</span><span class="n">library</span><span class="p">(</span><span class="n">RColorBrewer</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">rgeos</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">rgdal</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">sp</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">rgbif</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">raster</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">rasterVis</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">colorspace</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">lattice</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">latticeExtra</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">grid</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">gridExtra</span><span class="p">)</span>
+<span class="n">library</span><span class="p">(</span><span class="n">grDevices</span><span class="p">)</span>
+</code></pre></div>
+<p>Read in GBIF monk parakeet (Myiopsitta monachus) sightings and Uruguay administrative bouandaries</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">mymon</span> <span class="o">&lt;-</span> <span class="n">read.csv</span><span class="p">(</span><span class="s2">"mymon.csv"</span><span class="p">,</span> <span class="n">header</span> <span class="o">=</span> <span class="n">TRUE</span><span class="p">)</span>
+
+<span class="c1"># Uruguay administrative boundaries from http://www.gadm.org/country
+</span><span class="n">URY_adm0</span> <span class="o">&lt;-</span> <span class="n">readShapePoly</span><span class="p">(</span><span class="s2">"URY_adm0.shp"</span><span class="p">,</span> <span class="n">proj4string</span><span class="o">=</span><span class="n">CRS</span><span class="p">(</span><span class="s2">"+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"</span><span class="p">))</span> <span class="c1"># country border
+</span>
+<span class="c1"># convert country level data to data frame for mapping
+</span><span class="n">URY_adm0_df</span> <span class="o">&lt;-</span> <span class="n">fortify</span><span class="p">(</span><span class="n">URY_adm0</span><span class="p">)</span>
+</code></pre></div>
+<p>Retain only GBIF observations contained within the country level polygon, using <code>sp::over()</code>.
+I did this because GBIF observations do not always contain accurate stateProvince information. Also, I&#39;m reading in Uruguay roads as shapefiles. </p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># create SpatialPoints object of monk parakeet observations
+</span><span class="n">lon</span> <span class="o">&lt;-</span> <span class="n">mymon</span><span class="o">$</span><span class="n">decimalLongitude</span>
+<span class="n">lat</span> <span class="o">&lt;-</span> <span class="n">mymon</span><span class="o">$</span><span class="n">decimalLatitude</span>
+<span class="n">mat</span> <span class="o">&lt;-</span> <span class="n">as.matrix</span><span class="p">(</span><span class="n">cbind</span><span class="p">(</span><span class="n">lon</span><span class="p">,</span> <span class="n">lat</span><span class="p">))</span>
+<span class="n">p</span> <span class="o">&lt;-</span> <span class="n">SpatialPoints</span><span class="p">(</span><span class="n">mat</span><span class="p">,</span> <span class="n">proj4string</span> <span class="o">=</span> <span class="n">CRS</span><span class="p">(</span><span class="s2">"+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"</span><span class="p">))</span>
+
+<span class="c1"># determine if each sighting is inside or outside of Uruguay country polygon
+</span><span class="n">URY</span> <span class="o">&lt;-</span> <span class="o">!</span><span class="n">is.na</span><span class="p">(</span><span class="n">over</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">as</span><span class="p">(</span><span class="n">URY_adm0</span><span class="p">,</span> <span class="s2">"SpatialPolygons"</span><span class="p">)))</span>
+
+<span class="n">lon.URY.in</span> <span class="o">&lt;-</span> <span class="n">lon</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="n">URY</span> <span class="o">==</span> <span class="n">TRUE</span><span class="p">)]</span>
+<span class="n">lat.URY.in</span> <span class="o">&lt;-</span> <span class="n">lat</span><span class="p">[</span><span class="n">which</span><span class="p">(</span><span class="n">URY</span> <span class="o">==</span> <span class="n">TRUE</span><span class="p">)]</span>
+
+<span class="c1"># create new SpatialPoints object to convert all Uruguay observations to the 
+# same coordinate system as gadm data
+</span><span class="n">mat2</span> <span class="o">&lt;-</span> <span class="n">as.matrix</span><span class="p">(</span><span class="n">cbind</span><span class="p">(</span><span class="n">lon.URY.in</span><span class="p">,</span> <span class="n">lat.URY.in</span><span class="p">))</span>
+<span class="n">p2</span> <span class="o">&lt;-</span> <span class="n">SpatialPoints</span><span class="p">(</span><span class="n">mat2</span><span class="p">,</span> <span class="n">proj4string</span> <span class="o">=</span> <span class="n">CRS</span><span class="p">(</span><span class="s2">"+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"</span><span class="p">))</span>
+
+<span class="n">conv.lon</span> <span class="o">&lt;-</span> <span class="n">p2</span><span class="o">@</span><span class="n">coords</span><span class="p">[,</span> <span class="m">1</span><span class="p">]</span>
+<span class="n">conv.lat</span> <span class="o">&lt;-</span> <span class="n">p2</span><span class="o">@</span><span class="n">coords</span><span class="p">[,</span> <span class="m">2</span><span class="p">]</span>
+<span class="n">points</span> <span class="o">&lt;-</span> <span class="n">data.frame</span><span class="p">(</span><span class="n">lon</span> <span class="o">=</span> <span class="n">conv.lon</span><span class="p">,</span> <span class="n">lat</span> <span class="o">=</span> <span class="n">conv.lat</span><span class="p">)</span>
+
+<span class="c1"># read in Uruguay roads data
+# from Natural Earth http://www.naturalearthdata.com/downloads/10m-cultural-vectors/
+</span><span class="n">URYroadsOGR</span> <span class="o">&lt;-</span> <span class="n">readOGR</span><span class="p">(</span><span class="s2">"URY_roads.shp"</span><span class="p">,</span> <span class="s2">"URY_roads"</span><span class="p">)</span>
+<span class="n">str</span><span class="p">(</span><span class="n">URYroadsOGR</span><span class="p">)</span>
+<span class="n">URYroads</span> <span class="o">&lt;-</span> <span class="n">spTransform</span><span class="p">(</span><span class="n">URYroadsOGR</span><span class="p">,</span> <span class="n">CRS</span><span class="p">(</span><span class="s2">"+proj=longlat +datum=WGS84"</span><span class="p">))</span>
+<span class="n">URYroads_df</span> <span class="o">&lt;-</span> <span class="n">fortify</span><span class="p">(</span><span class="n">URYroads</span><span class="p">)</span>
+<span class="n">str</span><span class="p">(</span><span class="n">URYroads_df</span><span class="p">)</span>
+</code></pre></div>
+<p>Read in and crop global population raster</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># download global population and land cover MODIS data as GEOTiff
+# http://neo.sci.gsfc.nasa.gov
+</span>
+<span class="c1"># bounding box for Uruguay
+</span><span class="n">b</span> <span class="o">&lt;-</span> <span class="n">extent</span><span class="p">(</span><span class="m">-59</span><span class="p">,</span> <span class="m">-53</span><span class="p">,</span> <span class="m">-35.5</span><span class="p">,</span> <span class="m">-29.5</span><span class="p">)</span>
+
+<span class="c1"># read in population data and crop to fit Uruguay
+</span><span class="n">pop</span> <span class="o">&lt;-</span> <span class="n">raster</span><span class="p">(</span><span class="s2">"SEDAC_POP_2000-01-01_rgb_3600x1800.FLOAT-2.TIFF"</span><span class="p">)</span>
+<span class="n">pop</span> <span class="o">&lt;-</span> <span class="n">crop</span><span class="p">(</span><span class="n">pop</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="n">pop</span><span class="p">[</span><span class="n">pop</span> <span class="o">==</span> <span class="m">99999</span><span class="p">]</span> <span class="o">&lt;-</span> <span class="n">NA</span>
+
+<span class="c1"># disaggregating raster to create higher resolution (smaller cells), 
+# for a less pixelated map, this doesn't work well for the land cover raster
+</span><span class="n">pop2</span> <span class="o">&lt;-</span> <span class="n">disaggregate</span><span class="p">(</span><span class="n">pop</span><span class="p">,</span> <span class="n">fact</span> <span class="o">=</span> <span class="m">10</span><span class="p">,</span> <span class="n">method</span> <span class="o">=</span> <span class="s2">"bilinear"</span><span class="p">)</span>
+</code></pre></div>
+<p><img src="/images/uruguay-pop.tiff" width="300" height ="300" /></p>
+
+<p>Read in and crop global land cover raster layers</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># I'm only using a handful of land cover categories for Uruguay
+# Check out all categories:
+# http://eoimages.gsfc.nasa.gov/images/news/NasaNews/ReleaseImages/LCC/Images/lcc_key.jpg
+</span>
+<span class="c1"># read in land cover data and crop to fit Uruguay
+</span><span class="n">landClass</span> <span class="o">&lt;-</span> <span class="n">raster</span><span class="p">(</span><span class="s2">"LandClass_RenderData"</span><span class="p">)</span>
+<span class="n">landClass</span> <span class="o">&lt;-</span> <span class="n">crop</span><span class="p">(</span><span class="n">landClass</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span>
+<span class="n">landClass</span><span class="p">[</span><span class="n">landClass</span> <span class="o">%</span><span class="k">in</span><span class="o">%</span> <span class="n">c</span><span class="p">(</span><span class="m">0</span><span class="p">,</span> <span class="m">254</span><span class="p">)]</span> <span class="o">&lt;-</span> <span class="n">NA</span>
+
+<span class="c1"># classify by categories found in Uruguay
+</span><span class="n">landClass</span> <span class="o">&lt;-</span> <span class="n">cut</span><span class="p">(</span><span class="n">landClass</span><span class="p">,</span> <span class="n">c</span><span class="p">(</span><span class="m">8</span><span class="p">,</span> <span class="m">10</span><span class="p">,</span> <span class="m">11</span><span class="p">,</span> <span class="m">12</span><span class="p">,</span> <span class="m">13</span><span class="p">))</span>
+
+<span class="c1"># add a Raster Atribute Table (RAT) and define the raster as categorical data
+</span><span class="n">landClass</span> <span class="o">&lt;-</span> <span class="n">ratify</span><span class="p">(</span><span class="n">landClass</span><span class="p">)</span>
+
+<span class="c1"># configure the RAT: 
+# 1) create a RAT data.frame using the levels method
+# 2) set the values for each class (to be used by levelplot)
+# 3) assign this RAT to the raster 
+</span><span class="n">rat</span> <span class="o">&lt;-</span> <span class="n">levels</span><span class="p">(</span><span class="n">landClass</span><span class="p">)[[</span><span class="m">1</span><span class="p">]]</span>
+
+<span class="c1"># name the RAT classes by land cover category
+</span><span class="n">rat</span><span class="o">$</span><span class="n">classes</span> <span class="o">&lt;-</span> <span class="n">c</span><span class="p">(</span><span class="s2">"GRASSLANDS"</span><span class="p">,</span> <span class="s2">"WETLANDS"</span><span class="p">,</span> <span class="s2">"CROPLANDS"</span><span class="p">,</span> <span class="s2">"URBAN"</span><span class="p">)</span>
+<span class="n">levels</span><span class="p">(</span><span class="n">landClass</span><span class="p">)</span> <span class="o">&lt;-</span> <span class="n">rat</span>
+
+<span class="c1"># specify limits of population scale (z-scale), which will be used to scale population data
+# lowering max limit of population scale, since Uruguay is not densely populated
+# at &lt;- pTotal$legend$bottom$args$key$at # from original code
+</span><span class="n">at</span> <span class="o">&lt;-</span> <span class="n">seq</span><span class="p">(</span><span class="n">pop2</span><span class="o">@</span><span class="n">data</span><span class="o">@</span><span class="n">min</span><span class="p">,</span> <span class="n">pop2</span><span class="o">@</span><span class="n">data</span><span class="o">@</span><span class="n">max</span><span class="p">,</span> <span class="n">pop2</span><span class="o">@</span><span class="n">data</span><span class="o">@</span><span class="n">max</span><span class="o">/</span><span class="m">16</span><span class="p">)</span>
+
+<span class="c1"># classes &lt;- levels(factor(whichMax)) # from original code
+</span><span class="n">nClasses</span> <span class="o">&lt;-</span> <span class="n">nrow</span><span class="p">(</span><span class="n">rat</span><span class="p">)</span>
+</code></pre></div>
+<p><img src="/images/uruguay-landcover.tiff" width="300" height ="300" /></p>
+
+<p>Creating a trellis map object, with land cover layer now scaled by population numbers</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># initialize pList, a list of levelplots
+</span><span class="n">pList</span> <span class="o">&lt;-</span> <span class="n">NULL</span>
+
+<span class="c1"># initializing even and odd vectors to assign diversifying colors to adjacent land classes
+</span><span class="n">ev</span> <span class="o">&lt;-</span> <span class="n">c</span><span class="p">(</span><span class="n">seq</span><span class="p">(</span><span class="m">2</span><span class="p">,</span> <span class="n">nClasses</span><span class="p">,</span> <span class="m">2</span><span class="p">))</span>
+<span class="n">od</span> <span class="o">&lt;-</span> <span class="n">c</span><span class="p">(</span><span class="n">seq</span><span class="p">(</span><span class="m">1</span><span class="p">,</span> <span class="n">nClasses</span><span class="p">,</span> <span class="m">2</span><span class="p">))</span>
+
+<span class="c1"># looping over land classes to create list of levelplots 
+</span><span class="n">pList</span> <span class="o">&lt;-</span> <span class="n">lapply</span><span class="p">(</span><span class="m">1</span><span class="o">:</span><span class="n">nClasses</span><span class="p">,</span> <span class="k">function</span><span class="p">(</span><span class="n">i</span><span class="p">){</span>
+
+  <span class="n">landSub</span> <span class="o">&lt;-</span> <span class="n">landClass</span>
+
+  <span class="c1"># assign NAs to all land classes that are not pulled out by the current iteration of i
+</span>  <span class="n">landSub</span><span class="p">[</span><span class="o">!</span><span class="p">(</span><span class="n">landClass</span> <span class="o">==</span> <span class="n">rat</span><span class="o">$</span><span class="n">ID</span><span class="p">[</span><span class="n">i</span><span class="p">])]</span> <span class="o">&lt;-</span> <span class="n">NA</span> 
+
+  <span class="n">popSub</span> <span class="o">&lt;-</span> <span class="n">mask</span><span class="p">(</span><span class="n">pop2</span><span class="p">,</span> <span class="n">landSub</span><span class="p">)</span> <span class="c1"># mask population by land classes
+</span>
+  <span class="c1"># color land class categories
+</span>  <span class="n">step</span> <span class="o">&lt;-</span> <span class="m">180</span><span class="o">/</span><span class="n">nClasses</span>
+  <span class="k">if</span><span class="p">(</span><span class="n">grepl</span><span class="p">(</span><span class="s2">"URB"</span><span class="p">,</span> <span class="n">rat</span><span class="o">$</span><span class="n">classes</span><span class="p">[</span><span class="n">i</span><span class="p">])){</span> <span class="c1"># making urban category stand out
+</span>    <span class="n">pal</span> <span class="o">&lt;-</span> <span class="n">rev</span><span class="p">(</span><span class="n">heat_hcl</span><span class="p">(</span><span class="m">28</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="m">0</span><span class="p">,</span>
+               <span class="n">c.</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="m">80</span><span class="p">,</span><span class="m">30</span><span class="p">),</span> <span class="n">l</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="m">30</span><span class="p">,</span><span class="m">90</span><span class="p">),</span> <span class="n">power</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="m">1</span><span class="o">/</span><span class="m">5</span><span class="p">,</span><span class="m">1.5</span><span class="p">)))[</span><span class="o">-</span><span class="n">c</span><span class="p">(</span><span class="m">1</span><span class="o">:</span><span class="m">10</span><span class="p">)]</span>
+    <span class="p">}</span><span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">i</span> <span class="o">%</span><span class="k">in</span><span class="o">%</span> <span class="n">ev</span><span class="p">){</span> 
+    <span class="n">pal</span> <span class="o">&lt;-</span> <span class="n">rev</span><span class="p">(</span><span class="n">terrain_hcl</span><span class="p">(</span><span class="m">28</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="p">(</span><span class="m">30</span> <span class="o">+</span> <span class="n">step</span><span class="o">*</span><span class="p">(</span><span class="n">i</span><span class="m">-1</span><span class="p">))</span><span class="o">%%</span><span class="m">360</span><span class="p">,</span>
+               <span class="n">c.</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="m">65</span><span class="p">,</span><span class="m">0</span><span class="p">),</span> <span class="n">l</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="m">45</span><span class="p">,</span><span class="m">95</span><span class="p">),</span> <span class="n">power</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="m">1</span><span class="o">/</span><span class="m">3</span><span class="p">,</span> <span class="m">1.5</span><span class="p">)))[</span><span class="o">-</span><span class="n">c</span><span class="p">(</span><span class="m">1</span><span class="o">:</span><span class="m">10</span><span class="p">)]</span>
+  <span class="p">}</span><span class="k">else</span> <span class="k">if</span><span class="p">(</span><span class="n">i</span> <span class="o">%</span><span class="k">in</span><span class="o">%</span> <span class="n">od</span><span class="p">){</span> 
+    <span class="n">pal</span> <span class="o">&lt;-</span> <span class="n">rev</span><span class="p">(</span><span class="n">heat_hcl</span><span class="p">(</span><span class="m">28</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="p">(</span><span class="m">90</span> <span class="o">+</span> <span class="n">step</span><span class="o">*</span><span class="p">(</span><span class="n">i</span><span class="m">-1</span><span class="p">))</span><span class="o">%%</span><span class="m">360</span><span class="p">,</span>
+               <span class="n">c.</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="m">80</span><span class="p">,</span><span class="m">30</span><span class="p">),</span> <span class="n">l</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="m">30</span><span class="p">,</span><span class="m">90</span><span class="p">),</span> <span class="n">power</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="m">1</span><span class="o">/</span><span class="m">5</span><span class="p">,</span><span class="m">1.5</span><span class="p">)))[</span><span class="o">-</span><span class="n">c</span><span class="p">(</span><span class="m">1</span><span class="o">:</span><span class="m">10</span><span class="p">)]</span>
+  <span class="p">}</span>
+
+  <span class="c1"># creating levelplot for the current land class
+</span>  <span class="n">pClass</span> <span class="o">&lt;-</span> <span class="n">levelplot</span><span class="p">(</span><span class="n">popSub</span><span class="p">,</span> <span class="n">at</span><span class="o">=</span><span class="n">at</span><span class="p">,</span>
+                      <span class="n">col.regions</span><span class="o">=</span><span class="n">pal</span><span class="p">,</span> <span class="n">margin</span><span class="o">=</span><span class="n">FALSE</span><span class="p">,</span>
+                      <span class="n">labels</span> <span class="o">=</span> <span class="n">list</span><span class="p">(</span><span class="n">labels</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">ceiling</span><span class="p">(</span><span class="n">at</span><span class="p">)),</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">3</span><span class="p">),</span> 
+                      <span class="n">xlab</span> <span class="o">=</span> <span class="n">list</span><span class="p">(</span><span class="n">label</span> <span class="o">=</span> <span class="s2">"Longitude"</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">3</span><span class="p">),</span>
+                      <span class="n">ylab</span> <span class="o">=</span> <span class="n">list</span><span class="p">(</span><span class="n">label</span><span class="o">=</span> <span class="s2">"Latitude"</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">3</span><span class="p">),</span>
+                      <span class="n">scales</span> <span class="o">=</span> <span class="n">list</span><span class="p">(</span><span class="n">cex</span> <span class="o">=</span> <span class="m">2</span><span class="p">))</span>
+<span class="p">})</span>
+
+<span class="c1"># collapsing levelplots into one 
+</span><span class="n">p</span> <span class="o">&lt;-</span> <span class="n">Reduce</span><span class="p">(</span><span class="s1">'+'</span><span class="p">,</span> <span class="n">pList</span><span class="p">)</span> <span class="c1"># only one legend appears
+</span>
+<span class="n">cols</span> <span class="o">&lt;-</span> <span class="m">1</span>
+<span class="n">rows</span> <span class="o">&lt;-</span> <span class="m">2</span>
+
+<span class="c1"># write function to add a title below each legend
+</span><span class="n">addTitle</span> <span class="o">&lt;-</span> <span class="k">function</span><span class="p">(</span><span class="n">legend</span><span class="p">,</span> <span class="n">title</span><span class="p">){</span>
+
+  <span class="c1"># the urban legend ends up on the right hand side,
+</span>  <span class="c1"># and the text gets skewed, so I'm treating this label differently
+</span>  <span class="k">if</span><span class="p">(</span><span class="n">grepl</span><span class="p">(</span><span class="s2">"URB"</span><span class="p">,</span> <span class="n">title</span><span class="p">)){</span> 
+    <span class="n">titleGrob</span> <span class="o">&lt;-</span> <span class="n">textGrob</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">gp</span><span class="o">=</span><span class="n">gpar</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="m">25</span><span class="p">),</span> <span class="n">rot</span> <span class="o">=</span> <span class="m">270</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="m">0.1</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="m">0.9</span><span class="p">,</span>
+                          <span class="n">just</span> <span class="o">=</span> <span class="s2">"left"</span><span class="p">)</span>
+  <span class="p">}</span> <span class="k">else</span><span class="p">{</span>
+    <span class="n">titleGrob</span> <span class="o">&lt;-</span> <span class="n">textGrob</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">gp</span><span class="o">=</span><span class="n">gpar</span><span class="p">(</span><span class="n">fontsize</span><span class="o">=</span><span class="m">25</span><span class="p">),</span> <span class="n">rot</span> <span class="o">=</span> <span class="m">270</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="m">0.9</span><span class="p">,</span>
+                          <span class="n">just</span> <span class="o">=</span> <span class="s2">"left"</span><span class="p">)</span>
+  <span class="p">}</span>
+
+  <span class="n">legendGrob</span> <span class="o">&lt;-</span> <span class="n">eval</span><span class="p">(</span><span class="n">as.call</span><span class="p">(</span><span class="n">c</span><span class="p">(</span><span class="n">as.symbol</span><span class="p">(</span><span class="n">legend</span><span class="o">$</span><span class="n">fun</span><span class="p">),</span> <span class="n">legend</span><span class="o">$</span><span class="n">args</span><span class="p">)))</span>
+
+  <span class="c1"># specifying one column and two rows for the legend and title below
+</span>  <span class="n">ly</span> <span class="o">&lt;-</span> <span class="n">grid.layout</span><span class="p">(</span><span class="n">ncol</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">nrow</span><span class="o">=</span><span class="n">rows</span><span class="p">,</span> <span class="n">heights</span><span class="o">=</span><span class="n">unit</span><span class="p">(</span><span class="n">c</span><span class="p">(</span><span class="m">0.8</span><span class="p">,</span><span class="m">0.2</span><span class="p">),</span> <span class="n">rep</span><span class="p">(</span><span class="s1">'npc'</span><span class="p">,</span> <span class="n">cols</span><span class="p">)),</span> 
+                    <span class="n">widths</span><span class="o">=</span><span class="n">unit</span><span class="p">(</span><span class="n">rep</span><span class="p">(</span><span class="m">0.1</span><span class="p">,</span><span class="n">rows</span><span class="p">),</span> <span class="n">rep</span><span class="p">(</span><span class="s1">'npc'</span><span class="p">,</span> <span class="n">rows</span><span class="p">)))</span>
+
+  <span class="c1"># packing legends with titles into a frame Grob
+</span>  <span class="n">fg</span> <span class="o">&lt;-</span> <span class="n">frameGrob</span><span class="p">(</span><span class="n">ly</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">paste</span><span class="p">(</span><span class="s1">'legendTitle'</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">'_'</span><span class="p">))</span>
+  <span class="n">pg</span> <span class="o">&lt;-</span> <span class="n">packGrob</span><span class="p">(</span><span class="n">fg</span><span class="p">,</span> <span class="n">legendGrob</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="m">1</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="m">1</span><span class="p">)</span>
+  <span class="n">pg</span> <span class="o">&lt;-</span> <span class="n">packGrob</span><span class="p">(</span><span class="n">pg</span><span class="p">,</span> <span class="n">titleGrob</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="m">1</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="m">2</span><span class="p">)</span>
+
+<span class="p">}</span>
+
+<span class="c1"># run addTitle() for each legend that needs it 
+</span><span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="k">in</span> <span class="m">1</span><span class="o">:</span><span class="n">nClasses</span><span class="p">){</span>
+  <span class="n">lg</span> <span class="o">&lt;-</span> <span class="n">pList</span><span class="p">[[</span><span class="n">i</span><span class="p">]]</span><span class="o">$</span><span class="n">legend</span><span class="o">$</span><span class="n">right</span>
+  <span class="n">lg</span><span class="o">$</span><span class="n">labels</span> <span class="o">&lt;-</span> <span class="n">ceiling</span><span class="p">(</span><span class="n">at</span><span class="p">)</span>
+  <span class="n">lg</span><span class="o">$</span><span class="n">args</span><span class="o">$</span><span class="n">key</span><span class="o">$</span><span class="n">labels</span><span class="o">$</span><span class="n">cex</span> <span class="o">=</span> <span class="n">ifelse</span><span class="p">(</span><span class="n">i</span><span class="o">==</span><span class="n">nClasses</span><span class="p">,</span> <span class="m">2</span><span class="p">,</span> <span class="m">0</span><span class="p">)</span> <span class="c1"># only the last legend needs labels
+</span>  <span class="n">pList</span><span class="p">[[</span><span class="n">i</span><span class="p">]]</span><span class="o">$</span><span class="n">legend</span><span class="o">$</span><span class="n">right</span> <span class="o">&lt;-</span> <span class="n">list</span><span class="p">(</span><span class="n">fun</span><span class="o">=</span><span class="s1">'addTitle'</span><span class="p">,</span>
+                                  <span class="n">args</span><span class="o">=</span><span class="n">list</span><span class="p">(</span><span class="n">legend</span><span class="o">=</span><span class="n">lg</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">rat</span><span class="o">$</span><span class="n">classes</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+<span class="p">}</span>
+
+<span class="c1"># create list of legends
+</span><span class="n">legendList</span> <span class="o">&lt;-</span> <span class="n">lapply</span><span class="p">(</span><span class="n">pList</span><span class="p">,</span> <span class="k">function</span><span class="p">(</span><span class="n">x</span><span class="p">){</span>
+  <span class="n">lg</span> <span class="o">&lt;-</span> <span class="n">x</span><span class="o">$</span><span class="n">legend</span><span class="o">$</span><span class="n">right</span>
+  <span class="n">clKey</span> <span class="o">&lt;-</span> <span class="n">eval</span><span class="p">(</span><span class="n">as.call</span><span class="p">(</span><span class="n">c</span><span class="p">(</span><span class="n">as.symbol</span><span class="p">(</span><span class="n">lg</span><span class="o">$</span><span class="n">fun</span><span class="p">),</span> <span class="n">lg</span><span class="o">$</span><span class="n">args</span><span class="p">)))</span>
+  <span class="n">clKey</span>
+<span class="p">})</span>
+
+<span class="c1"># create a function to collapse the list into a single legend
+# adapted from latticeExtra::: mergedTrellisLegendGrob
+</span><span class="n">packLegend</span> <span class="o">&lt;-</span> <span class="k">function</span><span class="p">(</span><span class="n">legendList</span><span class="p">){</span>
+  <span class="n">N</span> <span class="o">&lt;-</span> <span class="n">length</span><span class="p">(</span><span class="n">legendList</span><span class="p">)</span>
+  <span class="n">ly</span> <span class="o">&lt;-</span> <span class="n">grid.layout</span><span class="p">(</span><span class="n">nrow</span> <span class="o">=</span> <span class="m">1</span><span class="p">,</span>  <span class="n">ncol</span> <span class="o">=</span> <span class="n">N</span><span class="p">)</span>
+  <span class="n">g</span> <span class="o">&lt;-</span> <span class="n">frameGrob</span><span class="p">(</span><span class="n">layout</span> <span class="o">=</span> <span class="n">ly</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="s2">"mergedLegend"</span><span class="p">)</span>
+  <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="k">in</span> <span class="m">1</span><span class="o">:</span><span class="n">N</span><span class="p">)</span> <span class="n">g</span> <span class="o">&lt;-</span> <span class="n">packGrob</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">legendList</span><span class="p">[[</span><span class="n">i</span><span class="p">]],</span> <span class="n">col</span> <span class="o">=</span> <span class="n">i</span><span class="p">)</span>
+  <span class="n">g</span>
+<span class="p">}</span>
+
+<span class="c1"># Now, p's legend includes all the legends
+</span><span class="n">p</span><span class="o">$</span><span class="n">legend</span><span class="o">$</span><span class="n">right</span> <span class="o">&lt;-</span> <span class="n">list</span><span class="p">(</span><span class="n">fun</span> <span class="o">=</span> <span class="s1">'packLegend'</span><span class="p">,</span>  <span class="n">args</span> <span class="o">=</span> <span class="n">list</span><span class="p">(</span><span class="n">legendList</span> <span class="o">=</span> <span class="n">legendList</span><span class="p">))</span>
+
+<span class="n">dev.off</span><span class="p">()</span>
+</code></pre></div>
+<p>Adding other layers to the trellis object p: country border, roads and GBIF sightings</p>
+<div class="highlight"><pre><code class="language-r" data-lang="r"><span class="c1"># creating another legend for these additional layers
+</span><span class="n">lGrob</span> <span class="o">&lt;-</span> <span class="n">legendGrob</span><span class="p">(</span><span class="n">labels</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="s2">"URY border"</span><span class="p">,</span> <span class="s2">"URY roads"</span><span class="p">,</span>
+                               <span class="n">expression</span><span class="p">(</span><span class="n">italic</span><span class="p">(</span><span class="n">M.monachus</span> <span class="p">)</span><span class="o">~</span><span class="n">sightings</span><span class="p">)),</span> 
+                    <span class="n">nrow</span> <span class="o">=</span> <span class="m">1</span><span class="p">,</span> <span class="n">ncol</span> <span class="o">=</span> <span class="m">3</span><span class="p">,</span>
+                    <span class="n">default.units</span> <span class="o">=</span> <span class="s2">"lines"</span><span class="p">,</span> <span class="n">pch</span> <span class="o">=</span> <span class="m">21</span><span class="p">,</span> 
+                    <span class="n">gp</span> <span class="o">=</span> <span class="n">gpar</span><span class="p">(</span><span class="n">fill</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="n">diverge_hcl</span><span class="p">(</span><span class="m">12</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="m">246</span><span class="p">,</span><span class="m">40</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="m">96</span><span class="p">)[</span><span class="m">1</span><span class="p">],</span>
+                              <span class="n">diverge_hcl</span><span class="p">(</span><span class="m">12</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="m">246</span><span class="p">,</span><span class="m">40</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="m">96</span><span class="p">)[</span><span class="m">6</span><span class="p">],</span>
+                    <span class="n">heat.colors</span><span class="p">(</span><span class="m">12</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.6</span><span class="p">)[</span><span class="m">9</span><span class="p">]),</span> 
+                    <span class="n">col</span> <span class="o">=</span> <span class="n">c</span><span class="p">(</span><span class="s2">"black"</span><span class="p">,</span> <span class="s2">"black"</span><span class="p">,</span>
+                    <span class="n">heat.colors</span><span class="p">(</span><span class="m">12</span><span class="p">)[</span><span class="m">3</span><span class="p">]),</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">2</span><span class="p">))</span>
+
+<span class="c1"># blank Grob will go between legend and main Grob
+</span><span class="n">bGrob</span> <span class="o">&lt;-</span> <span class="n">rectGrob</span><span class="p">(</span><span class="n">gp</span> <span class="o">=</span> <span class="n">gpar</span><span class="p">(</span><span class="n">col</span> <span class="o">=</span> <span class="s2">"white"</span><span class="p">))</span>
+
+<span class="c1"># add country polygon, road lines and GBIF points to p
+</span><span class="n">mainGrob</span> <span class="o">&lt;-</span> <span class="n">p</span> <span class="o">+</span> 
+  <span class="n">latticeExtra</span><span class="o">::</span><span class="n">layer</span><span class="p">(</span><span class="n">sp.polygons</span><span class="p">(</span><span class="n">URY_adm0</span><span class="p">,</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">4</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="n">diverge_hcl</span><span class="p">(</span><span class="m">12</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="m">246</span><span class="p">,</span><span class="m">40</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="m">96</span><span class="p">)[</span><span class="m">1</span><span class="p">]))</span> <span class="o">+</span>
+  <span class="n">latticeExtra</span><span class="o">::</span><span class="n">layer</span><span class="p">(</span><span class="n">sp.lines</span><span class="p">(</span><span class="n">URYroadsOGR</span><span class="p">,</span> <span class="n">lwd</span> <span class="o">=</span> <span class="m">2</span><span class="p">,</span> <span class="n">col</span> <span class="o">=</span> <span class="n">diverge_hcl</span><span class="p">(</span><span class="m">12</span><span class="p">,</span> <span class="n">h</span> <span class="o">=</span> <span class="m">246</span><span class="p">,</span><span class="m">40</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="m">96</span><span class="p">)[</span><span class="m">6</span><span class="p">]))</span> <span class="o">+</span>
+  <span class="n">latticeExtra</span><span class="o">::</span><span class="n">layer</span><span class="p">(</span><span class="n">panel.points</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">pch</span> <span class="o">=</span> <span class="m">21</span><span class="p">,</span> <span class="n">cex</span> <span class="o">=</span> <span class="m">2.5</span><span class="p">,</span> <span class="n">fill</span> <span class="o">=</span> <span class="n">heat.colors</span><span class="p">(</span><span class="m">12</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="m">0.6</span><span class="p">)[</span><span class="m">9</span><span class="p">],</span> <span class="n">col</span> <span class="o">=</span> <span class="n">heat.colors</span><span class="p">(</span><span class="m">12</span><span class="p">)[</span><span class="m">3</span><span class="p">]))</span>
+
+<span class="c1"># create a legend for the population zscale
+</span><span class="n">labGrob</span> <span class="o">&lt;-</span> <span class="n">textGrob</span><span class="p">(</span><span class="n">expression</span><span class="p">(</span><span class="s2">"Population density"</span> <span class="p">(</span><span class="n">persons</span><span class="o">/</span><span class="n">km</span><span class="o">^</span><span class="p">{</span><span class="m">2</span><span class="p">})),</span> 
+                    <span class="n">default.units</span> <span class="o">=</span> <span class="s2">"lines"</span><span class="p">,</span> <span class="n">rot</span> <span class="o">=</span> <span class="m">270</span><span class="p">,</span> <span class="n">gp</span> <span class="o">=</span> <span class="n">gpar</span><span class="p">(</span><span class="n">fontsize</span> <span class="o">=</span> <span class="m">27</span><span class="p">))</span>
+
+<span class="n">h</span> <span class="o">&lt;-</span> <span class="m">40</span>
+<span class="n">w</span> <span class="o">&lt;-</span> <span class="m">40</span>
+
+<span class="c1"># create image file, this can also be done with an x11() window
+</span><span class="n">trellis.device</span><span class="p">(</span><span class="s1">'png'</span><span class="p">,</span> <span class="n">file</span> <span class="o">=</span> <span class="s2">"Mymon_Uruguay_landcover.png"</span><span class="p">,</span> <span class="n">units</span> <span class="o">=</span> <span class="s2">"cm"</span><span class="p">,</span> <span class="n">height</span> <span class="o">=</span> <span class="n">h</span><span class="p">,</span>
+               <span class="n">width</span> <span class="o">=</span> <span class="n">w</span><span class="p">,</span> <span class="n">res</span> <span class="o">=</span> <span class="m">600</span><span class="p">)</span>
+<span class="n">grid.arrange</span><span class="p">(</span><span class="n">arrangeGrob</span><span class="p">(</span><span class="n">lGrob</span><span class="p">,</span> <span class="n">bGrob</span><span class="p">,</span> <span class="n">mainGrob</span><span class="p">,</span> <span class="n">nrow</span> <span class="o">=</span> <span class="m">3</span><span class="p">,</span> <span class="n">heights</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="n">c</span><span class="p">((</span><span class="n">h</span><span class="o">/</span><span class="n">h</span><span class="p">)</span><span class="o">*</span><span class="m">2</span><span class="p">,</span> <span class="n">h</span><span class="o">/</span><span class="p">(</span><span class="n">h</span><span class="o">*</span><span class="m">10</span><span class="p">),</span> <span class="n">h</span> <span class="o">-</span> <span class="n">h</span><span class="o">/</span><span class="n">h</span> <span class="o">-</span> <span class="n">h</span><span class="o">/</span><span class="n">h</span><span class="o">*</span><span class="m">2</span><span class="p">),</span> <span class="n">units</span> <span class="o">=</span> <span class="s1">'cm'</span><span class="p">)),</span> <span class="n">labGrob</span><span class="p">,</span> <span class="n">ncol</span> <span class="o">=</span> <span class="m">2</span><span class="p">,</span> 
+             <span class="n">widths</span> <span class="o">=</span> <span class="n">unit</span><span class="p">(</span><span class="n">c</span><span class="p">(</span><span class="m">35</span><span class="p">,</span> <span class="m">2</span><span class="p">),</span> <span class="n">units</span> <span class="o">=</span> <span class="s1">'cm'</span><span class="p">))</span>
+</code></pre></div>
+<p><img src="/images/mymon-uruguay-landcover.png" width="300" height ="300" /></p>
+
+	
+</div>
+
+
+    </div>
+    <script src="/javascripts/scale.fix.js"></script>
+  </body>
+</html>

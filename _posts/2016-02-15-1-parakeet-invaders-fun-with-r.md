@@ -21,11 +21,11 @@ We don't often think of parrots as successful invasive species, but monk parakee
 
 
 
-I'm using genomic tools to determine if genetic differentiation patterns across monk parakeet populations are a product of adaptation to human-induced selection pressures. I'm complementing genomic markers with candidate immune genes to determine if human disturbance influences pathogenic selection pressures. I'm also interested in cold adaptations and phenotypic plasticity, including learning, in monk parakeets that evolved much earlier than their contemporary invasions.
+I'm using genomic tools to determine if genetic differentiation patterns across monk parakeet populations are a product of adaptation to human-induced selection pressures. I'm additionally genotyping individuals at candidate immune genes to determine if human disturbance influences pathogenic selection pressures. Finally, I'm interested in cold adaptations and phenotypic plasticity (including learning) that evolved much earlier than monk parakeets' contemporary invasions.
 
 In my following posts, I'll use monk parakeets as a case study for playing around in: 
 
-<img src="/images/R.png" width="200" height ="200" />
+<img src="/images/R.png" width="250" height ="210" />
 
 The codes I'll post are intended for biologists interested in learning to create graphics or run genomic analyses in R. In all posts, I'm assuming you know how to install and load packages, search for help in RStudio and online, and the different classes of variables / object types in R. If you're unfamiliar with regular expression or logical statements in R, run the simplest unit of the nested expressions to get accustomed to the logic.
 
